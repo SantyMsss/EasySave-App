@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
-import '../services/usuario_service.dart';
+import '../services/auth_service.dart';
 import '../services/auth_manager.dart';
+import '../models/usuario.dart';
 import 'registro_screen.dart';
 import 'home_screen.dart';
 
@@ -15,7 +16,7 @@ class _LoginScreenState extends State<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
   final _usernameController = TextEditingController();
   final _passwordController = TextEditingController();
-  final _usuarioService = UsuarioService();
+  final _authService = AuthService();
   final _authManager = AuthManager();
   
   bool _isLoading = false;
@@ -34,29 +35,52 @@ class _LoginScreenState extends State<LoginScreen> {
     setState(() => _isLoading = true);
 
     try {
-      // Intentar login
-      final usuario = await _usuarioService.login(
-        _usernameController.text.trim(),
-        _passwordController.text,
+      // Intentar login con JWT
+      final result = await _authService.login(
+        username: _usernameController.text.trim(),
+        password: _passwordController.text,
       );
 
-      // Guardar sesión
-      await _authManager.guardarSesion(usuario);
-
-      if (mounted) {
-        // Navegar a la pantalla principal
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(
-            builder: (context) => HomeScreen(usuario: usuario),
-          ),
+      if (result['success']) {
+        final userData = result['data'];
+        
+        // Crear objeto Usuario con los datos recibidos
+        final usuario = Usuario(
+          id: userData['id'],
+          username: userData['username'],
+          correo: userData['correo'],
+          rol: userData['rol'],
         );
+
+        // Guardar sesión con el token
+        await _authManager.guardarSesion(usuario, userData['token']);
+
+        if (mounted) {
+          // Navegar a la pantalla principal
+          Navigator.of(context).pushReplacement(
+            MaterialPageRoute(
+              builder: (context) => HomeScreen(usuario: usuario),
+            ),
+          );
+        }
+      } else {
+        // Mostrar mensaje de error
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(result['message'] ?? 'Error al iniciar sesión'),
+              backgroundColor: Colors.red,
+              duration: const Duration(seconds: 4),
+            ),
+          );
+        }
       }
     } catch (e) {
       if (mounted) {
         final errorMessage = e.toString().replaceAll('Exception: ', '');
         
         // Si es un error de conexión, mostrar diálogo con instrucciones
-        if (errorMessage.contains('conectar') || errorMessage.contains('ClientFailed')) {
+        if (errorMessage.contains('conectar') || errorMessage.contains('conexión')) {
           _showConnectionErrorDialog();
         } else {
           ScaffoldMessenger.of(context).showSnackBar(

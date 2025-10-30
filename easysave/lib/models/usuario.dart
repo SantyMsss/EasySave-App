@@ -67,7 +67,7 @@ class Usuario {
   final String rol;
   final String correo;
   final String username;
-  final String password;
+  final String? password; // Opcional porque no se recibe desde JWT
   final List<Ingreso> ingresos;
   final List<Gasto> gastos;
 
@@ -76,7 +76,7 @@ class Usuario {
     this.rol = 'USER',
     required this.correo,
     required this.username,
-    required this.password,
+    this.password, // Ya no es required
     this.ingresos = const [],
     this.gastos = const [],
   });
@@ -87,7 +87,7 @@ class Usuario {
       rol: json['rol'] ?? 'USER',
       correo: json['correo'],
       username: json['username'],
-      password: json['password'] ?? '',
+      password: json['password'], // Puede ser null
       ingresos: (json['ingresos'] as List<dynamic>?)
               ?.map((i) => Ingreso.fromJson(i))
               .toList() ??
@@ -105,7 +105,7 @@ class Usuario {
       'rol': rol,
       'correo': correo,
       'username': username,
-      'password': password,
+      if (password != null) 'password': password, // Solo incluye si no es null
       'ingresos': ingresos.map((i) => i.toJson()).toList(),
       'gastos': gastos.map((g) => g.toJson()).toList(),
     };
