@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../models/usuario.dart';
-import '../services/usuario_service.dart';
+import '../services/auth_service.dart';
 import '../services/auth_manager.dart';
 import 'home_screen.dart';
 
@@ -19,7 +19,7 @@ class _RegistroScreenState extends State<RegistroScreen> {
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
   
-  final _usuarioService = UsuarioService();
+  final _authService = AuthService();
   final _authManager = AuthManager();
   
   bool _isLoading = false;
@@ -41,55 +41,62 @@ class _RegistroScreenState extends State<RegistroScreen> {
     setState(() => _isLoading = true);
 
     try {
-      // Verificar si el username ya existe
-      final existeUsername = await _usuarioService.existeUsername(
-        _usernameController.text.trim(),
-      );
-      if (existeUsername) {
-        throw Exception('El nombre de usuario ya está en uso');
-      }
-
-      // Verificar si el correo ya existe
-      final existeCorreo = await _usuarioService.existeCorreo(
-        _correoController.text.trim(),
-      );
-      if (existeCorreo) {
-        throw Exception('El correo electrónico ya está registrado');
-      }
-
-      final nuevoUsuario = Usuario(
+      // Intentar registro con JWT
+      final result = await _authService.register(
         username: _usernameController.text.trim(),
         correo: _correoController.text.trim(),
         password: _passwordController.text,
+        rol: 'USER',
       );
 
-      final usuarioCreado = await _usuarioService.crearUsuario(nuevoUsuario);
-
-      // Guardar sesión
-      await _authManager.guardarSesion(usuarioCreado);
-
-      if (mounted) {
-        // Mostrar mensaje de éxito
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('¡Registro exitoso! Bienvenido a EasySave'),
-            backgroundColor: Colors.green,
-          ),
+      if (result['success']) {
+        final userData = result['data'];
+        
+        // Crear objeto Usuario con los datos recibidos
+        final usuario = Usuario(
+          id: userData['id'],
+          username: userData['username'],
+          correo: userData['correo'],
+          rol: userData['rol'],
         );
 
-        // Navegar a la pantalla principal
-        Navigator.of(context).pushAndRemoveUntil(
-          MaterialPageRoute(
-            builder: (context) => HomeScreen(usuario: usuarioCreado),
-          ),
-          (route) => false,
-        );
+        // Guardar sesión con el token
+        await _authManager.guardarSesion(usuario, userData['token']);
+
+        if (mounted) {
+          // Mostrar mensaje de éxito
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('¡Registro exitoso! Bienvenido a EasySave'),
+              backgroundColor: Colors.green,
+            ),
+          );
+
+          // Navegar a la pantalla principal
+          Navigator.of(context).pushAndRemoveUntil(
+            MaterialPageRoute(
+              builder: (context) => HomeScreen(usuario: usuario),
+            ),
+            (route) => false,
+          );
+        }
+      } else {
+        // Mostrar mensaje de error
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(result['message'] ?? 'Error al registrarse'),
+              backgroundColor: Colors.red,
+              duration: const Duration(seconds: 4),
+            ),
+          );
+        }
       }
     } catch (e) {
       if (mounted) {
         final errorMessage = e.toString().replaceAll('Exception: ', '');
         
-        if (errorMessage.contains('conectar') || errorMessage.contains('ClientFailed')) {
+        if (errorMessage.contains('conectar') || errorMessage.contains('conexión')) {
           _showConnectionErrorDialog();
         } else {
           ScaffoldMessenger.of(context).showSnackBar(

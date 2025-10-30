@@ -1,7 +1,11 @@
 /// Configuración de constantes para la aplicación
 class AppConfig {
   // URL base del API
-  static const String baseUrl = 'http://localhost:8080/api/v1/usuario-service';
+  static const String baseUrl = 'http://localhost:8080/api/v1';
+  
+  // URLs de servicios
+  static const String usuarioServiceUrl = '$baseUrl/usuario-service';
+  static const String authUrl = '$baseUrl/auth';
   
   // Endpoints
   static const String usuariosEndpoint = '/usuarios';
