@@ -1,0 +1,235 @@
+import 'dart:convert';
+import 'package:http/http.dart' as http;
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import '../models/usuario.dart';
+import '../config/app_config.dart';
+
+class AuthService {
+  static const String baseUrl = AppConfig.authBaseUrl;
+  final storage = const FlutterSecureStorage();
+
+  // ============================================
+  // REGISTRO DE USUARIO
+  // ============================================
+  Future<Usuario> register({
+    required String username,
+    required String correo,
+    required String password,
+    String rol = 'USER',
+  }) async {
+    try {
+      print('[AUTH] Intentando registrar usuario: $username');
+      
+      final response = await http.post(
+        Uri.parse('$baseUrl/register'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'username': username,
+          'correo': correo,
+          'password': password,
+          'rol': rol,
+        }),
+      );
+
+      print('[AUTH] Status Code: ${response.statusCode}');
+
+      if (response.statusCode == 201) {
+        final data = jsonDecode(response.body);
+        
+        // Guardar token
+        await saveToken(data['token']);
+        await saveUserId(data['id']);
+        
+        // Crear usuario desde la respuesta
+        final usuario = Usuario(
+          id: data['id'],
+          username: data['username'],
+          correo: data['correo'],
+          rol: data['rol'] ?? 'USER',
+          password: '',
+        );
+        
+        print('[AUTH] Registro exitoso: ${usuario.username}');
+        return usuario;
+      } else {
+        final error = jsonDecode(response.body);
+        throw Exception(error['message'] ?? 'Error en el registro');
+      }
+    } catch (e) {
+      print('[AUTH] Error en registro: $e');
+      rethrow;
+    }
+  }
+
+  // ============================================
+  // LOGIN DE USUARIO
+  // ============================================
+  Future<Usuario> login({
+    required String username,
+    required String password,
+  }) async {
+    try {
+      print('[AUTH] Intentando login: $username');
+      
+      final response = await http.post(
+        Uri.parse('$baseUrl/login'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'username': username,
+          'password': password,
+        }),
+      );
+
+      print('[AUTH] Status Code: ${response.statusCode}');
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        
+        // Guardar token
+        await saveToken(data['token']);
+        await saveUserId(data['id']);
+        
+        // Crear usuario desde la respuesta
+        final usuario = Usuario(
+          id: data['id'],
+          username: data['username'],
+          correo: data['correo'],
+          rol: data['rol'] ?? 'USER',
+          password: '',
+        );
+        
+        print('[AUTH] Login exitoso: ${usuario.username}');
+        return usuario;
+      } else {
+        final error = jsonDecode(response.body);
+        throw Exception(error['message'] ?? 'Credenciales inválidas');
+      }
+    } catch (e) {
+      print('[AUTH] Error en login: $e');
+      rethrow;
+    }
+  }
+
+  // ============================================
+  // TEST DE AUTENTICACIÓN
+  // ============================================
+  Future<bool> testAuth() async {
+    try {
+      String? token = await getToken();
+      if (token == null) return false;
+
+      final response = await http.get(
+        Uri.parse('$baseUrl/test'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+      ).timeout(const Duration(seconds: 5));
+
+      return response.statusCode == 200;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  // ============================================
+  // MANEJO DE TOKENS
+  // ============================================
+  
+  /// Guardar el token JWT
+  Future<void> saveToken(String token) async {
+    await storage.write(key: 'jwt_token', value: token);
+  }
+
+  /// Obtener el token JWT
+  Future<String?> getToken() async {
+    return await storage.read(key: 'jwt_token');
+  }
+
+  /// Guardar el ID del usuario
+  Future<void> saveUserId(int userId) async {
+    await storage.write(key: 'user_id', value: userId.toString());
+  }
+
+  /// Obtener el ID del usuario
+  Future<int?> getUserId() async {
+    final userIdStr = await storage.read(key: 'user_id');
+    return userIdStr != null ? int.tryParse(userIdStr) : null;
+  }
+
+  /// Eliminar token (logout)
+  Future<void> logout() async {
+    await storage.delete(key: 'jwt_token');
+    await storage.delete(key: 'user_id');
+  }
+
+  /// Verificar si está autenticado
+  Future<bool> isAuthenticated() async {
+    String? token = await getToken();
+    return token != null;
+  }
+
+  // ============================================
+  // PETICIONES AUTENTICADAS
+  // ============================================
+  
+  /// Realizar una petición HTTP autenticada
+  Future<http.Response> authenticatedRequest({
+    required String url,
+    String method = 'GET',
+    Map<String, dynamic>? body,
+  }) async {
+    String? token = await getToken();
+
+    if (token == null) {
+      throw Exception('No hay sesión activa. Por favor inicia sesión.');
+    }
+
+    Map<String, String> headers = {
+      'Content-Type': 'application/json',
+      'Authorization': 'Bearer $token',
+    };
+
+    switch (method.toUpperCase()) {
+      case 'POST':
+        return await http.post(
+          Uri.parse(url),
+          headers: headers,
+          body: body != null ? jsonEncode(body) : null,
+        ).timeout(const Duration(seconds: 10));
+
+      case 'PUT':
+        return await http.put(
+          Uri.parse(url),
+          headers: headers,
+          body: body != null ? jsonEncode(body) : null,
+        ).timeout(const Duration(seconds: 10));
+
+      case 'DELETE':
+        return await http.delete(
+          Uri.parse(url),
+          headers: headers,
+        ).timeout(const Duration(seconds: 10));
+
+      default: // GET
+        return await http.get(
+          Uri.parse(url),
+          headers: headers,
+        ).timeout(const Duration(seconds: 10));
+    }
+  }
+
+  /// Obtener headers con autenticación
+  Future<Map<String, String>> getAuthHeaders() async {
+    String? token = await getToken();
+    
+    if (token == null) {
+      throw Exception('No hay sesión activa');
+    }
+
+    return {
+      'Content-Type': 'application/json',
+      'Authorization': 'Bearer $token',
+    };
+  }
+}

@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import '../models/usuario.dart';
-import '../services/usuario_service.dart';
+import '../services/auth_service.dart';
 import '../services/auth_manager.dart';
 import 'home_screen.dart';
 
@@ -19,7 +18,7 @@ class _RegistroScreenState extends State<RegistroScreen> {
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
   
-  final _usuarioService = UsuarioService();
+  final _authService = AuthService();
   final _authManager = AuthManager();
   
   bool _isLoading = false;
@@ -41,32 +40,16 @@ class _RegistroScreenState extends State<RegistroScreen> {
     setState(() => _isLoading = true);
 
     try {
-      // Verificar si el username ya existe
-      final existeUsername = await _usuarioService.existeUsername(
-        _usernameController.text.trim(),
-      );
-      if (existeUsername) {
-        throw Exception('El nombre de usuario ya está en uso');
-      }
-
-      // Verificar si el correo ya existe
-      final existeCorreo = await _usuarioService.existeCorreo(
-        _correoController.text.trim(),
-      );
-      if (existeCorreo) {
-        throw Exception('El correo electrónico ya está registrado');
-      }
-
-      final nuevoUsuario = Usuario(
+      // Registro con JWT
+      final usuario = await _authService.register(
         username: _usernameController.text.trim(),
         correo: _correoController.text.trim(),
         password: _passwordController.text,
+        rol: 'USER',
       );
 
-      final usuarioCreado = await _usuarioService.crearUsuario(nuevoUsuario);
-
       // Guardar sesión
-      await _authManager.guardarSesion(usuarioCreado);
+      await _authManager.guardarSesion(usuario);
 
       if (mounted) {
         // Mostrar mensaje de éxito
@@ -80,7 +63,7 @@ class _RegistroScreenState extends State<RegistroScreen> {
         // Navegar a la pantalla principal
         Navigator.of(context).pushAndRemoveUntil(
           MaterialPageRoute(
-            builder: (context) => HomeScreen(usuario: usuarioCreado),
+            builder: (context) => HomeScreen(usuario: usuario),
           ),
           (route) => false,
         );
@@ -89,7 +72,7 @@ class _RegistroScreenState extends State<RegistroScreen> {
       if (mounted) {
         final errorMessage = e.toString().replaceAll('Exception: ', '');
         
-        if (errorMessage.contains('conectar') || errorMessage.contains('ClientFailed')) {
+        if (errorMessage.contains('conectar') || errorMessage.contains('ClientFailed') || errorMessage.contains('Connection')) {
           _showConnectionErrorDialog();
         } else {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -145,7 +128,7 @@ class _RegistroScreenState extends State<RegistroScreen> {
             ),
             const Text('2. ✓ CORS está configurado en el backend'),
             const SizedBox(height: 4),
-            const Text('3. ✓ El endpoint /api/v1/usuario-service/usuarios existe'),
+            const Text('3. ✓ El endpoint /api/v1/auth/register existe'),
           ],
         ),
         actions: [

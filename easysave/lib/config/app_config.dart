@@ -2,6 +2,7 @@
 class AppConfig {
   // URL base del API
   static const String baseUrl = 'http://localhost:8080/api/v1/usuario-service';
+  static const String authBaseUrl = 'http://localhost:8080/api/v1/auth';
   
   // Endpoints
   static const String usuariosEndpoint = '/usuarios';

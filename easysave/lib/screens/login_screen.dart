@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../services/usuario_service.dart';
+import '../services/auth_service.dart';
 import '../services/auth_manager.dart';
 import 'registro_screen.dart';
 import 'home_screen.dart';
@@ -15,7 +15,7 @@ class _LoginScreenState extends State<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
   final _usernameController = TextEditingController();
   final _passwordController = TextEditingController();
-  final _usuarioService = UsuarioService();
+  final _authService = AuthService();
   final _authManager = AuthManager();
   
   bool _isLoading = false;
@@ -34,10 +34,10 @@ class _LoginScreenState extends State<LoginScreen> {
     setState(() => _isLoading = true);
 
     try {
-      // Intentar login
-      final usuario = await _usuarioService.login(
-        _usernameController.text.trim(),
-        _passwordController.text,
+      // Login con JWT
+      final usuario = await _authService.login(
+        username: _usernameController.text.trim(),
+        password: _passwordController.text,
       );
 
       // Guardar sesión
@@ -56,7 +56,7 @@ class _LoginScreenState extends State<LoginScreen> {
         final errorMessage = e.toString().replaceAll('Exception: ', '');
         
         // Si es un error de conexión, mostrar diálogo con instrucciones
-        if (errorMessage.contains('conectar') || errorMessage.contains('ClientFailed')) {
+        if (errorMessage.contains('conectar') || errorMessage.contains('ClientFailed') || errorMessage.contains('Connection')) {
           _showConnectionErrorDialog();
         } else {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -112,7 +112,7 @@ class _LoginScreenState extends State<LoginScreen> {
             ),
             const Text('2. ✓ CORS está configurado en el backend'),
             const SizedBox(height: 4),
-            const Text('3. ✓ El endpoint /api/v1/usuario-service/usuarios existe'),
+            const Text('3. ✓ El endpoint /api/v1/auth/login existe'),
           ],
         ),
         actions: [
