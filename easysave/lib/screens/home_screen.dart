@@ -543,7 +543,11 @@ class _HomeScreenState extends State<HomeScreen> {
                               : Column(
                                   children: [
                                     ..._metasActivas.map((meta) {
-                                      final progreso = meta.progresoPorcentaje ?? 0;
+                                      // Calcular progreso: usar el del backend o calcularlo localmente
+                                      final progreso = meta.progresoPorcentaje ?? 
+                                          (meta.montoObjetivo > 0 
+                                              ? (meta.montoAhorrado / meta.montoObjetivo * 100).clamp(0, 100)
+                                              : 0.0);
                                       return Padding(
                                         padding: const EdgeInsets.only(bottom: 12),
                                         child: InkWell(

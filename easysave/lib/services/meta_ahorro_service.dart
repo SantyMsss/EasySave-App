@@ -189,8 +189,17 @@ class MetaAhorroService {
         headers: headers,
       ).timeout(const Duration(seconds: 10));
 
+      print('[META_AHORRO] Response status: ${response.statusCode}');
+      print('[META_AHORRO] Response body: ${response.body}');
+
       if (response.statusCode == 200) {
-        return SugerenciaAhorro.fromJson(json.decode(response.body));
+        try {
+          final jsonData = json.decode(response.body);
+          return SugerenciaAhorro.fromJson(jsonData);
+        } catch (e) {
+          print('[META_AHORRO] Error parsing JSON: $e');
+          throw Exception('Error al procesar la respuesta del servidor: $e');
+        }
       } else if (response.statusCode == 401) {
         throw Exception('Sesión expirada. Por favor inicia sesión nuevamente.');
       } else if (response.statusCode == 400) {
@@ -204,6 +213,7 @@ class MetaAhorroService {
     } on http.ClientException {
       throw Exception('No se puede conectar al servidor.');
     } catch (e) {
+      print('[META_AHORRO] Exception caught: $e');
       if (e is Exception) rethrow;
       throw Exception('Error: ${e.toString()}');
     }

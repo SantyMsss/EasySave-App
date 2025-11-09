@@ -48,8 +48,8 @@ class MetaAhorro {
   final int numeroCuotas;
   final double valorCuota;
   final String frecuenciaCuota; // SEMANAL, QUINCENAL, MENSUAL
-  final String fechaInicio;
-  final String fechaFinEstimada;
+  final String? fechaInicio;
+  final String? fechaFinEstimada;
   final String estado; // ACTIVA, COMPLETADA, CANCELADA
   final double? porcentajeBalance;
   final int? cuotasPagadas;
@@ -66,8 +66,8 @@ class MetaAhorro {
     required this.numeroCuotas,
     required this.valorCuota,
     required this.frecuenciaCuota,
-    required this.fechaInicio,
-    required this.fechaFinEstimada,
+    this.fechaInicio,
+    this.fechaFinEstimada,
     required this.estado,
     this.porcentajeBalance,
     this.cuotasPagadas,
@@ -78,7 +78,7 @@ class MetaAhorro {
   factory MetaAhorro.fromJson(Map<String, dynamic> json) {
     return MetaAhorro(
       id: json['id'],
-      nombreMeta: json['nombreMeta'],
+      nombreMeta: json['nombreMeta'] ?? 'Meta de Ahorro',
       montoObjetivo: (json['montoObjetivo'] ?? 0).toDouble(),
       montoAhorrado: (json['montoAhorrado'] ?? 0).toDouble(),
       montoFaltante: json['montoFaltante'] != null 
@@ -87,12 +87,12 @@ class MetaAhorro {
       progresoPorcentaje: json['progresoPorcentaje'] != null 
           ? (json['progresoPorcentaje']).toDouble() 
           : null,
-      numeroCuotas: json['numeroCuotas'],
+      numeroCuotas: json['numeroCuotas'] ?? 12,
       valorCuota: (json['valorCuota'] ?? 0).toDouble(),
-      frecuenciaCuota: json['frecuenciaCuota'],
+      frecuenciaCuota: json['frecuenciaCuota'] ?? 'MENSUAL',
       fechaInicio: json['fechaInicio'],
       fechaFinEstimada: json['fechaFinEstimada'],
-      estado: json['estado'],
+      estado: json['estado'] ?? 'ACTIVA',
       porcentajeBalance: json['porcentajeBalance'] != null 
           ? (json['porcentajeBalance']).toDouble() 
           : null,
@@ -117,8 +117,8 @@ class MetaAhorro {
       'numeroCuotas': numeroCuotas,
       'valorCuota': valorCuota,
       'frecuenciaCuota': frecuenciaCuota,
-      'fechaInicio': fechaInicio,
-      'fechaFinEstimada': fechaFinEstimada,
+      if (fechaInicio != null) 'fechaInicio': fechaInicio,
+      if (fechaFinEstimada != null) 'fechaFinEstimada': fechaFinEstimada,
       'estado': estado,
       if (porcentajeBalance != null) 'porcentajeBalance': porcentajeBalance,
       if (cuotasPagadas != null) 'cuotasPagadas': cuotasPagadas,
@@ -142,7 +142,7 @@ class SugerenciaAhorro {
 
   factory SugerenciaAhorro.fromJson(Map<String, dynamic> json) {
     return SugerenciaAhorro(
-      mensaje: json['mensaje'],
+      mensaje: json['mensaje'] ?? 'Sugerencia de ahorro calculada',
       sugerencia: MetaAhorro.fromJson(json['sugerencia']),
       nota: json['nota'],
     );

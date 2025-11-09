@@ -240,11 +240,11 @@ class _MetasAhorroScreenState extends State<MetasAhorroScreen> {
                   ),
                   _buildInfoRow(
                     'Fecha Inicio:',
-                    sugerencia.sugerencia.fechaInicio,
+                    sugerencia.sugerencia.fechaInicio ?? 'No disponible',
                   ),
                   _buildInfoRow(
                     'Fecha Fin Estimada:',
-                    sugerencia.sugerencia.fechaFinEstimada,
+                    sugerencia.sugerencia.fechaFinEstimada ?? 'No disponible',
                   ),
                   if (sugerencia.nota != null) ...[
                     const SizedBox(height: 12),
@@ -458,7 +458,11 @@ class _MetasAhorroScreenState extends State<MetasAhorroScreen> {
                         itemCount: _metas.length,
                         itemBuilder: (context, index) {
                           final meta = _metas[index];
-                          final progreso = meta.progresoPorcentaje ?? 0;
+                          // Calcular progreso: usar el del backend o calcularlo localmente
+                          final progreso = meta.progresoPorcentaje ?? 
+                              (meta.montoObjetivo > 0 
+                                  ? (meta.montoAhorrado / meta.montoObjetivo * 100).clamp(0, 100)
+                                  : 0.0);
                           
                           return Card(
                             margin: const EdgeInsets.only(bottom: 16),

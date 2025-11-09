@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import '../models/meta_ahorro.dart';
 import '../services/meta_ahorro_service.dart';
+import '../services/usuario_service.dart';
 import '../utils/currency_formatter.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class MetaAhorroDetalleScreen extends StatefulWidget {
   final int metaId;
@@ -14,8 +16,11 @@ class MetaAhorroDetalleScreen extends StatefulWidget {
 
 class _MetaAhorroDetalleScreenState extends State<MetaAhorroDetalleScreen> {
   final _metaAhorroService = MetaAhorroService();
+  final _usuarioService = UsuarioService();
   MetaAhorro? _meta;
   bool _isLoading = true;
+  Map<String, dynamic>? _balance;
+  double? _probabilidadExito;
 
   @override
   void initState() {
@@ -27,8 +32,24 @@ class _MetaAhorroDetalleScreenState extends State<MetaAhorroDetalleScreen> {
     setState(() => _isLoading = true);
     try {
       final meta = await _metaAhorroService.obtenerDetalleMeta(widget.metaId);
+      
+      // Obtener el balance del usuario
+      final prefs = await SharedPreferences.getInstance();
+      final usuarioId = prefs.getInt('usuario_id');
+      
+      Map<String, dynamic>? balance;
+      if (usuarioId != null) {
+        try {
+          balance = await _usuarioService.obtenerBalance(usuarioId);
+        } catch (e) {
+          print('[META_DETALLE] Error obteniendo balance: $e');
+        }
+      }
+
       setState(() {
         _meta = meta;
+        _balance = balance;
+        _probabilidadExito = _calcularProbabilidadExito(meta, balance);
         _isLoading = false;
       });
     } catch (e) {
@@ -41,6 +62,118 @@ class _MetaAhorroDetalleScreenState extends State<MetaAhorroDetalleScreen> {
           ),
         );
       }
+    }
+  }
+
+  // Calcula la probabilidad de éxito de la meta basada en el balance del usuario
+  double? _calcularProbabilidadExito(MetaAhorro meta, Map<String, dynamic>? balance) {
+    if (balance == null || meta.estado != 'ACTIVA') return null;
+
+    try {
+      // Obtener datos del balance
+      final balanceActual = (balance['balance'] ?? 0).toDouble();
+      final ingresosPromedio = (balance['totalIngresos'] ?? 0).toDouble();
+      final gastosPromedio = (balance['totalGastos'] ?? 0).toDouble();
+      
+      // Calcular excedente mensual (asumiendo que el balance es mensual)
+      final excedenteMensual = ingresosPromedio - gastosPromedio;
+      
+      // Obtener información de la meta
+      final cuotaRequerida = meta.valorCuota;
+      final cuotasPendientes = meta.cuotasPendientes ?? meta.numeroCuotas;
+
+      // Factores de probabilidad (0-100)
+      double probabilidad = 0;
+
+      // Factor 1: Capacidad de pago actual (40% del peso)
+      // ¿Puede pagar la cuota con su excedente?
+      if (excedenteMensual >= cuotaRequerida) {
+        probabilidad += 40;
+      } else if (excedenteMensual > 0) {
+        // Proporcional a cuánto puede cubrir
+        probabilidad += 40 * (excedenteMensual / cuotaRequerida);
+      }
+
+      // Factor 2: Balance disponible (30% del peso)
+      // ¿Tiene suficiente balance para cubrir varias cuotas?
+      final cuotasQuePuedeCubrir = balanceActual / cuotaRequerida;
+      if (cuotasQuePuedeCubrir >= cuotasPendientes) {
+        probabilidad += 30;
+      } else if (cuotasQuePuedeCubrir > 0) {
+        probabilidad += 30 * (cuotasQuePuedeCubrir / cuotasPendientes);
+      }
+
+      // Factor 3: Progreso actual (20% del peso)
+      // A mayor progreso, mayor motivación y probabilidad
+      final progresoActual = meta.progresoPorcentaje ?? 
+          (meta.montoObjetivo > 0 
+              ? (meta.montoAhorrado / meta.montoObjetivo * 100).clamp(0, 100)
+              : 0.0);
+      probabilidad += 20 * (progresoActual / 100);
+
+      // Factor 4: Relación ingresos/gastos (10% del peso)
+      // Si gasta menos de lo que gana, mejor probabilidad
+      if (ingresosPromedio > 0) {
+        final ratioSalud = (ingresosPromedio - gastosPromedio) / ingresosPromedio;
+        if (ratioSalud > 0) {
+          probabilidad += 10 * ratioSalud.clamp(0, 1);
+        }
+      }
+
+      // Ajustes finales
+      // Si ya tiene cuotas vencidas, reducir probabilidad
+      final cuotasVencidas = (meta.proximasCuotas ?? [])
+          .where((c) => c.estado == 'VENCIDA')
+          .length;
+      if (cuotasVencidas > 0) {
+        probabilidad -= (cuotasVencidas * 5).clamp(0, 15);
+      }
+
+      // Limitar entre 0 y 100
+      return probabilidad.clamp(0, 100);
+    } catch (e) {
+      print('[META_DETALLE] Error calculando probabilidad: $e');
+      return null;
+    }
+  }
+
+  // Obtiene el mensaje motivacional basado en la probabilidad
+  Map<String, dynamic> _getMensajeProbabilidad(double probabilidad) {
+    if (probabilidad >= 80) {
+      return {
+        'mensaje': '¡Excelente! Tu meta es muy alcanzable',
+        'detalle': 'Tu situación financiera te permite cumplir esta meta sin problemas. ¡Sigue así!',
+        'color': Colors.green,
+        'icono': Icons.sentiment_very_satisfied,
+      };
+    } else if (probabilidad >= 60) {
+      return {
+        'mensaje': '¡Buena perspectiva! Meta alcanzable',
+        'detalle': 'Con disciplina y constancia, lograrás tu objetivo. Mantén el control de tus gastos.',
+        'color': Colors.lightGreen,
+        'icono': Icons.sentiment_satisfied,
+      };
+    } else if (probabilidad >= 40) {
+      return {
+        'mensaje': 'Meta desafiante pero posible',
+        'detalle': 'Necesitarás esfuerzo adicional. Considera reducir gastos innecesarios o buscar ingresos extra.',
+        'color': Colors.orange,
+        'icono': Icons.sentiment_neutral,
+      };
+    } else if (probabilidad >= 20) {
+      return {
+        'mensaje': 'Meta difícil de alcanzar',
+        'detalle': 'Tu situación actual hace difícil cumplir esta meta. Considera ajustar el monto o plazo.',
+        'color': Colors.deepOrange,
+        'icono': Icons.sentiment_dissatisfied,
+      };
+    } else {
+      return {
+        'mensaje': 'Meta poco realista actualmente',
+        'detalle': 'Tus finanzas actuales no permiten cumplir esta meta. Te recomendamos replantear los objetivos.',
+        'color': Colors.red,
+        'icono': Icons.sentiment_very_dissatisfied,
+      };
     }
   }
 
@@ -169,7 +302,11 @@ class _MetaAhorroDetalleScreenState extends State<MetaAhorroDetalleScreen> {
       );
     }
 
-    final progreso = _meta!.progresoPorcentaje ?? 0;
+    // Calcular progreso: usar el del backend o calcularlo localmente
+    final progreso = _meta!.progresoPorcentaje ?? 
+        (_meta!.montoObjetivo > 0 
+            ? (_meta!.montoAhorrado / _meta!.montoObjetivo * 100).clamp(0, 100)
+            : 0.0);
     final cuotas = _meta!.proximasCuotas ?? [];
 
     return Scaffold(
@@ -316,8 +453,8 @@ class _MetaAhorroDetalleScreenState extends State<MetaAhorroDetalleScreen> {
                           CurrencyFormatter.format(_meta!.valorCuota)),
                       _buildInfoRow('Número de cuotas', '${_meta!.numeroCuotas}'),
                       _buildInfoRow('Frecuencia', _meta!.frecuenciaCuota),
-                      _buildInfoRow('Fecha inicio', _meta!.fechaInicio),
-                      _buildInfoRow('Fecha fin estimada', _meta!.fechaFinEstimada),
+                      _buildInfoRow('Fecha inicio', _meta!.fechaInicio ?? 'No disponible'),
+                      _buildInfoRow('Fecha fin estimada', _meta!.fechaFinEstimada ?? 'No disponible'),
                       if (_meta!.cuotasPagadas != null)
                         _buildInfoRow('Cuotas pagadas', '${_meta!.cuotasPagadas}'),
                       if (_meta!.cuotasPendientes != null)
@@ -327,6 +464,13 @@ class _MetaAhorroDetalleScreenState extends State<MetaAhorroDetalleScreen> {
                 ),
               ),
               const SizedBox(height: 16),
+
+              // Tarjeta de Probabilidad de Éxito
+              if (_probabilidadExito != null && _meta!.estado == 'ACTIVA')
+                _buildProbabilidadExitoCard(),
+              
+              if (_probabilidadExito != null && _meta!.estado == 'ACTIVA')
+                const SizedBox(height: 16),
 
               // Lista de cuotas
               Card(
@@ -534,6 +678,237 @@ class _MetaAhorroDetalleScreenState extends State<MetaAhorroDetalleScreen> {
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildProbabilidadExitoCard() {
+    if (_probabilidadExito == null) return const SizedBox.shrink();
+
+    final mensaje = _getMensajeProbabilidad(_probabilidadExito!);
+    final color = mensaje['color'] as Color;
+    final icono = mensaje['icono'] as IconData;
+
+    return Card(
+      elevation: 4,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              color.withOpacity(0.1),
+              color.withOpacity(0.05),
+            ],
+          ),
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: color.withOpacity(0.2),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Icon(
+                      Icons.analytics,
+                      color: color,
+                      size: 28,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  const Expanded(
+                    child: Text(
+                      'Probabilidad de Éxito',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 20),
+
+              // Barra de probabilidad
+              Stack(
+                children: [
+                  Container(
+                    height: 30,
+                    decoration: BoxDecoration(
+                      color: Colors.grey[200],
+                      borderRadius: BorderRadius.circular(15),
+                    ),
+                  ),
+                  AnimatedContainer(
+                    duration: const Duration(milliseconds: 800),
+                    height: 30,
+                    width: (MediaQuery.of(context).size.width - 112) * 
+                           (_probabilidadExito! / 100),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [color, color.withOpacity(0.7)],
+                      ),
+                      borderRadius: BorderRadius.circular(15),
+                      boxShadow: [
+                        BoxShadow(
+                          color: color.withOpacity(0.3),
+                          blurRadius: 8,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: Center(
+                      child: Text(
+                        '${_probabilidadExito!.toStringAsFixed(0)}%',
+                        style: TextStyle(
+                          color: _probabilidadExito! > 30 ? Colors.white : Colors.transparent,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 14,
+                        ),
+                      ),
+                    ),
+                  ),
+                  if (_probabilidadExito! <= 30)
+                    Positioned(
+                      right: 12,
+                      top: 6,
+                      child: Text(
+                        '${_probabilidadExito!.toStringAsFixed(0)}%',
+                        style: TextStyle(
+                          color: color,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 14,
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+              const SizedBox(height: 20),
+
+              // Mensaje principal
+              Row(
+                children: [
+                  Icon(icono, color: color, size: 32),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          mensaje['mensaje'] as String,
+                          style: TextStyle(
+                            color: color,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          mensaje['detalle'] as String,
+                          style: TextStyle(
+                            color: Colors.grey[700],
+                            fontSize: 13,
+                            height: 1.4,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+
+              // Análisis detallado
+              if (_balance != null)
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.grey[50],
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.grey[200]!),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Icon(Icons.info_outline, size: 18, color: Colors.grey[600]),
+                          const SizedBox(width: 8),
+                          Text(
+                            'Análisis basado en:',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: Colors.grey[800],
+                              fontSize: 13,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      _buildAnalisisRow(
+                        'Balance actual',
+                        CurrencyFormatter.format((_balance!['balance'] ?? 0).toDouble()),
+                        Icons.account_balance_wallet,
+                      ),
+                      _buildAnalisisRow(
+                        'Ingresos totales',
+                        CurrencyFormatter.format((_balance!['totalIngresos'] ?? 0).toDouble()),
+                        Icons.trending_up,
+                      ),
+                      _buildAnalisisRow(
+                        'Gastos totales',
+                        CurrencyFormatter.format((_balance!['totalGastos'] ?? 0).toDouble()),
+                        Icons.trending_down,
+                      ),
+                      _buildAnalisisRow(
+                        'Cuota requerida',
+                        CurrencyFormatter.format(_meta!.valorCuota),
+                        Icons.payments,
+                      ),
+                    ],
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAnalisisRow(String label, String value, IconData icon) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: Row(
+        children: [
+          Icon(icon, size: 16, color: Colors.grey[600]),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              label,
+              style: TextStyle(
+                color: Colors.grey[700],
+                fontSize: 12,
+              ),
+            ),
+          ),
+          Text(
+            value,
+            style: const TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 12,
+            ),
+          ),
+        ],
       ),
     );
   }
