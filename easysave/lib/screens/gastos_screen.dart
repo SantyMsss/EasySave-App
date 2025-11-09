@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../models/usuario.dart';
 import '../services/usuario_service.dart';
+import '../services/pdf_service.dart';
 import '../utils/currency_formatter.dart';
 
 class GastosScreen extends StatefulWidget {
@@ -15,7 +16,9 @@ class GastosScreen extends StatefulWidget {
 
 class _GastosScreenState extends State<GastosScreen> {
   final _usuarioService = UsuarioService();
+  final _pdfService = PdfService();
   List<Gasto> _gastos = [];
+  List<Ingreso> _ingresos = [];
   bool _isLoading = true;
 
   @override
@@ -27,9 +30,11 @@ class _GastosScreenState extends State<GastosScreen> {
   Future<void> _cargarGastos() async {
     setState(() => _isLoading = true);
     try {
-      final data = await _usuarioService.obtenerGastos(widget.usuario.id!);
+      final dataGastos = await _usuarioService.obtenerGastos(widget.usuario.id!);
+      final dataIngresos = await _usuarioService.obtenerIngresos(widget.usuario.id!);
       setState(() {
-        _gastos = data.map((json) => Gasto.fromJson(json)).toList();
+        _gastos = dataGastos.map((json) => Gasto.fromJson(json)).toList();
+        _ingresos = dataIngresos.map((json) => Ingreso.fromJson(json)).toList();
         _isLoading = false;
       });
     } catch (e) {
@@ -38,6 +43,83 @@ class _GastosScreenState extends State<GastosScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Error: ${e.toString().replaceAll('Exception: ', '')}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _generarYCompartirPDF() async {
+    try {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Generando informe PDF...'),
+          duration: Duration(seconds: 2),
+        ),
+      );
+
+      final pdfFile = await _pdfService.generarInformeIngresosGastos(
+        usuario: widget.usuario,
+        ingresos: _ingresos,
+        gastos: _gastos,
+      );
+
+      if (mounted) {
+        // Mostrar opciones: compartir o previsualizar
+        showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('Informe Generado'),
+            content: const Text('¿Qué deseas hacer con el informe?'),
+            actions: [
+              TextButton.icon(
+                onPressed: () async {
+                  Navigator.pop(context);
+                  try {
+                    await _pdfService.previsualizarPDF(pdfFile);
+                  } catch (e) {
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('Función no disponible en web: ${e.toString()}'),
+                          backgroundColor: Colors.orange,
+                        ),
+                      );
+                    }
+                  }
+                },
+                icon: const Icon(Icons.visibility),
+                label: const Text('Previsualizar'),
+              ),
+              ElevatedButton.icon(
+                onPressed: () async {
+                  Navigator.pop(context);
+                  try {
+                    await _pdfService.compartirPDF(pdfFile, 'Informe Financiero - EasySave');
+                  } catch (e) {
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('Error al compartir: ${e.toString()}'),
+                          backgroundColor: Colors.red,
+                        ),
+                      );
+                    }
+                  }
+                },
+                icon: const Icon(Icons.share),
+                label: const Text('Compartir'),
+              ),
+            ],
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error al generar PDF: ${e.toString()}'),
             backgroundColor: Colors.red,
           ),
         );
@@ -153,6 +235,110 @@ class _GastosScreenState extends State<GastosScreen> {
     }
   }
 
+  Future<void> _mostrarDialogoEditar(Gasto gasto) async {
+    final nombreController = TextEditingController(text: gasto.nombreGasto);
+    final valorController = TextEditingController(
+      text: gasto.valorGasto.toStringAsFixed(0),
+    );
+    String estadoSeleccionado = gasto.estadoGasto;
+
+    final resultado = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Editar Gasto'),
+        content: StatefulBuilder(
+          builder: (context, setDialogState) => SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: nombreController,
+                  decoration: const InputDecoration(
+                    labelText: 'Nombre del Gasto',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: valorController,
+                  decoration: const InputDecoration(
+                    labelText: 'Valor',
+                    border: OutlineInputBorder(),
+                    prefixText: '\$ ',
+                  ),
+                  keyboardType: TextInputType.number,
+                  inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                ),
+                const SizedBox(height: 16),
+                DropdownButtonFormField<String>(
+                  value: estadoSeleccionado,
+                  decoration: const InputDecoration(
+                    labelText: 'Tipo',
+                    border: OutlineInputBorder(),
+                  ),
+                  items: const [
+                    DropdownMenuItem(value: 'fijo', child: Text('Fijo')),
+                    DropdownMenuItem(value: 'variable', child: Text('Variable')),
+                  ],
+                  onChanged: (valor) {
+                    setDialogState(() => estadoSeleccionado = valor!);
+                  },
+                ),
+              ],
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancelar'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              if (nombreController.text.isEmpty || valorController.text.isEmpty) {
+                return;
+              }
+              Navigator.pop(context, true);
+            },
+            child: const Text('Guardar'),
+          ),
+        ],
+      ),
+    );
+
+    if (resultado == true) {
+      try {
+        // Actualizar el gasto usando el endpoint PUT
+        await _usuarioService.actualizarGasto(
+          gasto.id!,
+          {
+            'nombreGasto': nombreController.text,
+            'valorGasto': double.parse(valorController.text),
+            'estadoGasto': estadoSeleccionado,
+          },
+        );
+        _cargarGastos();
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Gasto actualizado exitosamente'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Error al actualizar: ${e.toString()}'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
+    }
+  }
+
   Future<void> _confirmarEliminar(Gasto gasto) async {
     final confirmar = await showDialog<bool>(
       context: context,
@@ -206,6 +392,11 @@ class _GastosScreenState extends State<GastosScreen> {
       appBar: AppBar(
         title: const Text('Mis Gastos'),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.picture_as_pdf),
+            onPressed: _generarYCompartirPDF,
+            tooltip: 'Generar Informe PDF',
+          ),
           IconButton(
             icon: const Icon(Icons.refresh),
             onPressed: _cargarGastos,
@@ -304,11 +495,20 @@ class _GastosScreenState extends State<GastosScreen> {
                                         fontSize: 16,
                                       ),
                                     ),
+                                    const SizedBox(width: 4),
+                                    IconButton(
+                                      icon: const Icon(Icons.edit_outlined,
+                                          color: Colors.blue),
+                                      onPressed: () =>
+                                          _mostrarDialogoEditar(gasto),
+                                      tooltip: 'Editar',
+                                    ),
                                     IconButton(
                                       icon: const Icon(Icons.delete_outline,
                                           color: Colors.red),
                                       onPressed: () =>
                                           _confirmarEliminar(gasto),
+                                      tooltip: 'Eliminar',
                                     ),
                                   ],
                                 ),

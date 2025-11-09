@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import '../models/usuario.dart';
 import '../models/meta_ahorro.dart';
 import '../services/meta_ahorro_service.dart';
+import '../services/pdf_service.dart';
 import '../utils/currency_formatter.dart';
 import 'meta_ahorro_detalle_screen.dart';
 
@@ -17,6 +18,7 @@ class MetasAhorroScreen extends StatefulWidget {
 
 class _MetasAhorroScreenState extends State<MetasAhorroScreen> {
   final _metaAhorroService = MetaAhorroService();
+  final _pdfService = PdfService();
   List<MetaAhorro> _metas = [];
   bool _isLoading = true;
   int _filtroEstado = 0; // 0: Todas, 1: Activas, 2: Completadas
@@ -51,6 +53,130 @@ class _MetasAhorroScreenState extends State<MetasAhorroScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Error: ${e.toString().replaceAll('Exception: ', '')}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _generarYCompartirPDFMetas() async {
+    // Mostrar diálogo para elegir si filtrar por fecha o todas
+    final opcion = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Generar Informe de Metas'),
+        content: const Text('¿Cómo deseas generar el informe?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, 'filtrar'),
+            child: const Text('Filtrar por fecha'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, 'todas'),
+            child: const Text('Todas las metas'),
+          ),
+        ],
+      ),
+    );
+
+    if (opcion == null) return;
+
+    DateTime? fechaInicio;
+    DateTime? fechaFin;
+
+    // Si eligió filtrar, mostrar selector de fechas
+    if (opcion == 'filtrar') {
+      final rango = await showDateRangePicker(
+        context: context,
+        firstDate: DateTime(2020),
+        lastDate: DateTime(2030),
+        builder: (context, child) => Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: ColorScheme.light(
+              primary: Colors.blue[700]!,
+              onPrimary: Colors.white,
+            ),
+          ),
+          child: child!,
+        ),
+      );
+
+      if (rango == null) return;
+      fechaInicio = rango.start;
+      fechaFin = rango.end;
+    }
+
+    try {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Generando informe de metas...'),
+          duration: Duration(seconds: 2),
+        ),
+      );
+
+      final pdfFile = await _pdfService.generarInformeMetas(
+        usuario: widget.usuario,
+        metas: _metas,
+        fechaInicio: fechaInicio,
+        fechaFin: fechaFin,
+      );
+
+      if (mounted) {
+        showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('Informe Generado'),
+            content: const Text('¿Qué deseas hacer con el informe?'),
+            actions: [
+              TextButton.icon(
+                onPressed: () async {
+                  Navigator.pop(context);
+                  try {
+                    await _pdfService.previsualizarPDF(pdfFile);
+                  } catch (e) {
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('Función no disponible en web: ${e.toString()}'),
+                          backgroundColor: Colors.orange,
+                        ),
+                      );
+                    }
+                  }
+                },
+                icon: const Icon(Icons.visibility),
+                label: const Text('Previsualizar'),
+              ),
+              ElevatedButton.icon(
+                onPressed: () async {
+                  Navigator.pop(context);
+                  try {
+                    await _pdfService.compartirPDF(pdfFile, 'Informe Metas de Ahorro - EasySave');
+                  } catch (e) {
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('Error al compartir: ${e.toString()}'),
+                          backgroundColor: Colors.red,
+                        ),
+                      );
+                    }
+                  }
+                },
+                icon: const Icon(Icons.share),
+                label: const Text('Compartir'),
+              ),
+            ],
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error al generar PDF: ${e.toString()}'),
             backgroundColor: Colors.red,
           ),
         );
@@ -383,6 +509,11 @@ class _MetasAhorroScreenState extends State<MetasAhorroScreen> {
       appBar: AppBar(
         title: const Text('Metas de Ahorro'),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.picture_as_pdf),
+            onPressed: _generarYCompartirPDFMetas,
+            tooltip: 'Generar Informe PDF',
+          ),
           IconButton(
             icon: const Icon(Icons.refresh),
             onPressed: _cargarMetas,

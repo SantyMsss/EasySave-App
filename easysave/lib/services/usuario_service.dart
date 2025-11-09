@@ -151,6 +151,28 @@ class UsuarioService {
     }
   }
 
+  // Actualizar ingreso
+  Future<Map<String, dynamic>> actualizarIngreso(int ingresoId, Map<String, dynamic> ingreso) async {
+    try {
+      final headers = await _authHeaders;
+      final response = await http.put(
+        Uri.parse('$baseUrl/ingresos/$ingresoId'),
+        headers: headers,
+        body: json.encode(ingreso),
+      ).timeout(const Duration(seconds: 10));
+
+      if (response.statusCode == 200) {
+        return json.decode(response.body);
+      } else if (response.statusCode == 401) {
+        throw Exception('Sesión expirada. Por favor inicia sesión nuevamente.');
+      } else {
+        throw Exception('Error al actualizar ingreso');
+      }
+    } catch (e) {
+      throw Exception('Error: ${e.toString()}');
+    }
+  }
+
   // Agregar gasto
   Future<Map<String, dynamic>> agregarGasto(int usuarioId, Map<String, dynamic> gasto) async {
     try {
@@ -167,6 +189,28 @@ class UsuarioService {
         throw Exception('Sesión expirada. Por favor inicia sesión nuevamente.');
       } else {
         throw Exception('Error al agregar gasto');
+      }
+    } catch (e) {
+      throw Exception('Error: ${e.toString()}');
+    }
+  }
+
+  // Actualizar gasto
+  Future<Map<String, dynamic>> actualizarGasto(int gastoId, Map<String, dynamic> gasto) async {
+    try {
+      final headers = await _authHeaders;
+      final response = await http.put(
+        Uri.parse('$baseUrl/gastos/$gastoId'),
+        headers: headers,
+        body: json.encode(gasto),
+      ).timeout(const Duration(seconds: 10));
+
+      if (response.statusCode == 200) {
+        return json.decode(response.body);
+      } else if (response.statusCode == 401) {
+        throw Exception('Sesión expirada. Por favor inicia sesión nuevamente.');
+      } else {
+        throw Exception('Error al actualizar gasto');
       }
     } catch (e) {
       throw Exception('Error: ${e.toString()}');

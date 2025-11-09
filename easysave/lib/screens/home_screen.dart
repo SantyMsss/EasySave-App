@@ -5,6 +5,7 @@ import '../models/meta_ahorro.dart';
 import '../services/auth_manager.dart';
 import '../services/usuario_service.dart';
 import '../services/meta_ahorro_service.dart';
+import '../services/notificacion_cuota_service.dart';
 import '../utils/currency_formatter.dart';
 import 'login_screen.dart';
 import 'ingresos_screen.dart';
@@ -25,6 +26,7 @@ class _HomeScreenState extends State<HomeScreen> {
   final _authManager = AuthManager();
   final _usuarioService = UsuarioService();
   final _metaAhorroService = MetaAhorroService();
+  final _notificacionService = NotificacionCuotaService();
   
   double? _totalIngresos;
   double? _totalGastos;
@@ -39,6 +41,16 @@ class _HomeScreenState extends State<HomeScreen> {
     super.initState();
     _cargarBalance();
     _cargarMetasActivas();
+    // Inicializar servicio de notificaciones de cuotas
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _notificacionService.inicializar(context, usuario: widget.usuario);
+    });
+  }
+
+  @override
+  void dispose() {
+    _notificacionService.detener();
+    super.dispose();
   }
 
   Future<void> _cargarBalance() async {

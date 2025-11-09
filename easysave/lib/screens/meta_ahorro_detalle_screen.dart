@@ -35,7 +35,8 @@ class _MetaAhorroDetalleScreenState extends State<MetaAhorroDetalleScreen> {
       
       // Obtener el balance del usuario
       final prefs = await SharedPreferences.getInstance();
-      final usuarioId = prefs.getInt('usuario_id');
+      int? usuarioId = prefs.getInt('user_id'); // Clave correcta del AuthManager
+      usuarioId ??= prefs.getInt('usuario_id'); // Fallback por compatibilidad
       
       Map<String, dynamic>? balance;
       if (usuarioId != null) {
@@ -201,6 +202,27 @@ class _MetaAhorroDetalleScreenState extends State<MetaAhorroDetalleScreen> {
             _buildInfoRow('Monto:', CurrencyFormatter.format(cuota.montoCuota)),
             _buildInfoRow('Fecha programada:', cuota.fechaProgramada),
             _buildInfoRow('Estado:', cuota.estado),
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.blue[50],
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.blue[200]!),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.info_outline, size: 20, color: Colors.blue[700]),
+                  const SizedBox(width: 8),
+                  const Expanded(
+                    child: Text(
+                      'Este pago se registrará automáticamente como gasto',
+                      style: TextStyle(fontSize: 12),
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ],
         ),
         actions: [
@@ -210,6 +232,10 @@ class _MetaAhorroDetalleScreenState extends State<MetaAhorroDetalleScreen> {
           ),
           ElevatedButton(
             onPressed: () => Navigator.pop(context, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.green,
+              foregroundColor: Colors.white,
+            ),
             child: const Text('Pagar'),
           ),
         ],
@@ -217,23 +243,122 @@ class _MetaAhorroDetalleScreenState extends State<MetaAhorroDetalleScreen> {
     );
 
     if (confirmar == true) {
+      // Mostrar indicador de progreso
+      if (mounted) {
+        showDialog(
+          context: context,
+          barrierDismissible: false,
+          builder: (context) => const Center(
+            child: Card(
+              child: Padding(
+                padding: EdgeInsets.all(24),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    CircularProgressIndicator(),
+                    SizedBox(height: 16),
+                    Text('Procesando pago...'),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        );
+      }
+
       try {
+        // Obtener el usuario ID - Intentar ambas claves por compatibilidad
+        final prefs = await SharedPreferences.getInstance();
+        int? usuarioId = prefs.getInt('user_id'); // Clave correcta del AuthManager
+        
+        // Si no encuentra con 'user_id', intentar con 'usuario_id' (por compatibilidad)
+        usuarioId ??= prefs.getInt('usuario_id');
+
+        if (usuarioId == null) {
+          throw Exception('No se pudo obtener el ID del usuario. Por favor, cierra sesión e inicia sesión nuevamente.');
+        }
+
+        print('📝 Usuario ID obtenido: $usuarioId');
+
+        // 1. Pagar la cuota en el backend
         await _metaAhorroService.pagarCuota(widget.metaId, cuota.id!);
-        _cargarDetalle();
+
+        // 2. Registrar el pago como un gasto
+        bool gastoRegistrado = false;
+        String errorGasto = '';
+        try {
+          final nombreGasto = 'Ahorro: ${_meta!.nombreMeta} (Cuota #${cuota.numeroCuota})';
+          final resultado = await _usuarioService.agregarGasto(
+            usuarioId,
+            {
+              'nombreGasto': nombreGasto,
+              'valorGasto': cuota.montoCuota,
+              'estadoGasto': 'fijo', // Las cuotas programadas son gastos fijos
+            },
+          );
+          gastoRegistrado = true;
+          print('✅ Pago de cuota registrado como gasto: $nombreGasto');
+          print('📊 Respuesta del servidor: $resultado');
+        } catch (e) {
+          errorGasto = e.toString().replaceAll('Exception: ', '');
+          print('⚠️ Error al registrar gasto de cuota: $errorGasto');
+        }
+
+        // Cerrar diálogo de progreso
         if (mounted) {
+          Navigator.pop(context);
+        }
+
+        // Recargar detalle
+        _cargarDetalle();
+
+        // Mostrar mensaje de éxito con información del gasto
+        if (mounted) {
+          final mensajeGasto = gastoRegistrado 
+              ? '\n✓ Registrado como gasto' 
+              : '\n⚠ No se pudo registrar como gasto: $errorGasto';
+
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Cuota pagada exitosamente'),
-              backgroundColor: Colors.green,
+            SnackBar(
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    '¡Pago exitoso!',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  Text(
+                    'Cuota #${cuota.numeroCuota} de ${_meta!.nombreMeta}$mensajeGasto',
+                    style: const TextStyle(fontSize: 12),
+                  ),
+                ],
+              ),
+              backgroundColor: gastoRegistrado ? Colors.green : Colors.orange,
+              duration: const Duration(seconds: 5),
+              action: SnackBarAction(
+                label: 'Ver Gastos',
+                textColor: Colors.white,
+                onPressed: () {
+                  // Navegar a la pantalla de gastos (opcional)
+                },
+              ),
             ),
           );
         }
       } catch (e) {
+        // Cerrar diálogo de progreso si está abierto
+        if (mounted) {
+          Navigator.pop(context);
+        }
+
+        // Mostrar error
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text('Error: ${e.toString().replaceAll('Exception: ', '')}'),
               backgroundColor: Colors.red,
+              duration: const Duration(seconds: 4),
             ),
           );
         }

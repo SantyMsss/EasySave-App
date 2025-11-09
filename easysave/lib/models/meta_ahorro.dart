@@ -127,6 +127,22 @@ class MetaAhorro {
         'proximasCuotas': proximasCuotas!.map((c) => c.toJson()).toList(),
     };
   }
+
+  // Getters adicionales para compatibilidad con PDF
+  DateTime get fechaObjetivo {
+    if (fechaFinEstimada != null) {
+      try {
+        return DateTime.parse(fechaFinEstimada!);
+      } catch (e) {
+        return DateTime.now().add(Duration(days: numeroCuotas * 30));
+      }
+    }
+    return DateTime.now().add(Duration(days: numeroCuotas * 30));
+  }
+
+  double get montoActual => montoAhorrado;
+  
+  String get nombre => nombreMeta;
 }
 
 class SugerenciaAhorro {
