@@ -5,7 +5,7 @@ import '../models/usuario.dart';
 import '../config/app_config.dart';
 
 class AuthService {
-  static const String baseUrl = AppConfig.authBaseUrl;
+  static final String baseUrl = 'https://postmundane-errol-askew.ngrok-free.dev/api/v1/auth';
   final storage = const FlutterSecureStorage();
 
   // ============================================

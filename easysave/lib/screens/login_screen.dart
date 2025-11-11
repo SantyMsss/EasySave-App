@@ -3,6 +3,7 @@ import '../services/auth_service.dart';
 import '../services/auth_manager.dart';
 import 'registro_screen.dart';
 import 'home_screen.dart';
+import 'face_login_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -106,7 +107,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 borderRadius: BorderRadius.circular(4),
               ),
               child: const SelectableText(
-                'http://localhost:8080',
+                'https://postmundane-errol-askew.ngrok-free.dev',
                 style: TextStyle(fontFamily: 'monospace'),
               ),
             ),
@@ -235,6 +236,44 @@ class _LoginScreenState extends State<LoginScreen> {
                             'Iniciar Sesión',
                             style: TextStyle(fontSize: 16),
                           ),
+                  ),
+                  const SizedBox(height: 16),
+
+                  // Divider
+                  const Row(
+                    children: [
+                      Expanded(child: Divider()),
+                      Padding(
+                        padding: EdgeInsets.symmetric(horizontal: 16),
+                        child: Text(
+                          'o',
+                          style: TextStyle(color: Colors.grey),
+                        ),
+                      ),
+                      Expanded(child: Divider()),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+
+                  // Botón de login facial
+                  OutlinedButton.icon(
+                    onPressed: _isLoading
+                        ? null
+                        : () {
+                            Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (context) => const FaceLoginScreen(),
+                              ),
+                            );
+                          },
+                    icon: const Icon(Icons.face),
+                    label: const Text('Iniciar sesión con Reconocimiento Facial'),
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
                   ),
                   const SizedBox(height: 16),
 

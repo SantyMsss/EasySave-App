@@ -5,7 +5,7 @@ import '../models/usuario.dart';
 import 'auth_service.dart';
 
 class UsuarioService {
-  static const String baseUrl = 'http://localhost:8080/api/v1/usuario-service';
+  static const String baseUrl = 'https://postmundane-errol-askew.ngrok-free.dev/api/v1/usuario-service';
   final AuthService _authService = AuthService();
 
   // Headers con autenticación JWT

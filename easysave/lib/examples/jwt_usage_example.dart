@@ -164,7 +164,7 @@ class JwtUsageExample {
   Future<void> ejemploPeticionManual() async {
     try {
       final response = await authService.authenticatedRequest(
-        url: 'http://localhost:8080/api/v1/usuario-service/usuarios',
+        url: '${UsuarioService.baseUrl}/usuarios',
         method: 'GET',
       );
 
