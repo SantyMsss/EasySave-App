@@ -2,27 +2,20 @@ import 'dart:convert';
 import 'dart:async';
 import 'package:http/http.dart' as http;
 import '../models/usuario.dart';
-import '../config/app_config.dart';
-import 'auth_manager.dart';
+import 'auth_service.dart';
 
 class UsuarioService {
-  static const String baseUrl = AppConfig.usuarioServiceUrl;
-  
-  final _authManager = AuthManager();
+  static const String baseUrl = 'https://easysave-usuario-service-production.up.railway.app/api/v1/usuario-service';
+  final AuthService _authService = AuthService();
 
-  /// Obtiene los headers con el token JWT para peticiones autenticadas
-  Future<Map<String, String>> _getAuthHeaders() async {
-    final token = await _authManager.obtenerToken();
-    
-    return {
-      'Content-Type': 'application/json',
-      if (token != null) 'Authorization': 'Bearer $token',
-    };
+  // Headers con autenticación JWT
+  Future<Map<String, String>> get _authHeaders async {
+    return await _authService.getAuthHeaders();
   }
 
   Future<List<Usuario>> listarUsuarios() async {
     try {
-      final headers = await _getAuthHeaders();
+      final headers = await _authHeaders;
       final response = await http.get(
         Uri.parse('$baseUrl/usuarios'),
         headers: headers,
@@ -32,7 +25,7 @@ class UsuarioService {
         final List<dynamic> jsonList = json.decode(response.body);
         return jsonList.map((json) => Usuario.fromJson(json)).toList();
       } else if (response.statusCode == 401) {
-        throw Exception('No autorizado. Inicia sesión nuevamente.');
+        throw Exception('Sesión expirada. Por favor inicia sesión nuevamente.');
       } else {
         throw Exception('Error del servidor (${response.statusCode})');
       }
@@ -45,10 +38,10 @@ class UsuarioService {
     }
   }
 
-  // 2. Buscar usuario por ID
+  // Buscar usuario por ID
   Future<Usuario> buscarUsuarioPorId(int id) async {
     try {
-      final headers = await _getAuthHeaders();
+      final headers = await _authHeaders;
       final response = await http.get(
         Uri.parse('$baseUrl/usuarios/$id'),
         headers: headers,
@@ -57,36 +50,11 @@ class UsuarioService {
       if (response.statusCode == 200) {
         return Usuario.fromJson(json.decode(response.body));
       } else if (response.statusCode == 401) {
-        throw Exception('No autorizado. Inicia sesión nuevamente.');
+        throw Exception('Sesión expirada. Por favor inicia sesión nuevamente.');
       } else if (response.statusCode == 404) {
         throw Exception('Usuario no encontrado');
       } else {
         throw Exception('Error al buscar usuario: ${response.statusCode}');
-      }
-    } catch (e) {
-      throw Exception('Error de conexión: $e');
-    }
-  }
-
-  Future<Usuario> crearUsuario(Usuario usuario) async {
-    try {
-      final headers = await _getAuthHeaders();
-      final response = await http.post(
-        Uri.parse('$baseUrl/usuario'),
-        headers: headers,
-        body: json.encode(usuario.toJson()),
-      );
-
-      if (response.statusCode == 200 || response.statusCode == 201) {
-        return Usuario.fromJson(json.decode(response.body));
-      } else if (response.statusCode == 401) {
-        throw Exception('No autorizado. Inicia sesión nuevamente.');
-      } else if (response.statusCode == 400) {
-        throw Exception('Datos inválidos. Verifica la información ingresada.');
-      } else if (response.statusCode == 409) {
-        throw Exception('El usuario o correo ya existe.');
-      } else {
-        throw Exception('Error al crear usuario: ${response.statusCode}');
       }
     } catch (e) {
       if (e is Exception) rethrow;
@@ -94,10 +62,10 @@ class UsuarioService {
     }
   }
 
-  // 4. Actualizar usuario
+  // Actualizar usuario
   Future<Usuario> actualizarUsuario(Usuario usuario) async {
     try {
-      final headers = await _getAuthHeaders();
+      final headers = await _authHeaders;
       final response = await http.put(
         Uri.parse('$baseUrl/usuario'),
         headers: headers,
@@ -107,7 +75,7 @@ class UsuarioService {
       if (response.statusCode == 200) {
         return Usuario.fromJson(json.decode(response.body));
       } else if (response.statusCode == 401) {
-        throw Exception('No autorizado. Inicia sesión nuevamente.');
+        throw Exception('Sesión expirada. Por favor inicia sesión nuevamente.');
       } else if (response.statusCode == 404) {
         throw Exception('Usuario no encontrado');
       } else {
@@ -119,57 +87,10 @@ class UsuarioService {
     }
   }
 
-  // Método auxiliar para login (busca por username y valida password)
-  // DEPRECADO: Usar AuthService.login() en su lugar
-  @Deprecated('Usar AuthService.login() para autenticación JWT')
-  Future<Usuario> login(String username, String password) async {
-    try {
-      // Obtener todos los usuarios
-      final usuarios = await listarUsuarios();
-      
-      // Buscar el usuario por username
-      final usuario = usuarios.firstWhere(
-        (u) => u.username == username,
-        orElse: () => throw Exception('Usuario no encontrado'),
-      );
-
-      // Validar password
-      if (usuario.password == password) {
-        return usuario;
-      } else {
-        throw Exception('Contraseña incorrecta');
-      }
-    } catch (e) {
-      if (e is Exception) rethrow;
-      throw Exception('Error en el login: $e');
-    }
-  }
-
-  // Método auxiliar para verificar si un username ya existe
-  @Deprecated('Usar AuthService.register() para registro con JWT')
-  Future<bool> existeUsername(String username) async {
-    try {
-      final usuarios = await listarUsuarios();
-      return usuarios.any((u) => u.username == username);
-    } catch (e) {
-      return false;
-    }
-  }
-
-  @Deprecated('Usar AuthService.register() para registro con JWT')
-  Future<bool> existeCorreo(String correo) async {
-    try {
-      final usuarios = await listarUsuarios();
-      return usuarios.any((u) => u.correo == correo);
-    } catch (e) {
-      return false;
-    }
-  }
-
   // Obtener ingresos de un usuario
   Future<List<dynamic>> obtenerIngresos(int usuarioId) async {
     try {
-      final headers = await _getAuthHeaders();
+      final headers = await _authHeaders;
       final response = await http.get(
         Uri.parse('$baseUrl/usuarios/$usuarioId/ingresos'),
         headers: headers,
@@ -178,7 +99,7 @@ class UsuarioService {
       if (response.statusCode == 200) {
         return json.decode(response.body) as List<dynamic>;
       } else if (response.statusCode == 401) {
-        throw Exception('No autorizado. Inicia sesión nuevamente.');
+        throw Exception('Sesión expirada. Por favor inicia sesión nuevamente.');
       } else {
         throw Exception('Error al obtener ingresos');
       }
@@ -190,7 +111,7 @@ class UsuarioService {
   // Obtener gastos de un usuario
   Future<List<dynamic>> obtenerGastos(int usuarioId) async {
     try {
-      final headers = await _getAuthHeaders();
+      final headers = await _authHeaders;
       final response = await http.get(
         Uri.parse('$baseUrl/usuarios/$usuarioId/gastos'),
         headers: headers,
@@ -199,7 +120,7 @@ class UsuarioService {
       if (response.statusCode == 200) {
         return json.decode(response.body) as List<dynamic>;
       } else if (response.statusCode == 401) {
-        throw Exception('No autorizado. Inicia sesión nuevamente.');
+        throw Exception('Sesión expirada. Por favor inicia sesión nuevamente.');
       } else {
         throw Exception('Error al obtener gastos');
       }
@@ -211,7 +132,7 @@ class UsuarioService {
   // Agregar ingreso
   Future<Map<String, dynamic>> agregarIngreso(int usuarioId, Map<String, dynamic> ingreso) async {
     try {
-      final headers = await _getAuthHeaders();
+      final headers = await _authHeaders;
       final response = await http.post(
         Uri.parse('$baseUrl/usuarios/$usuarioId/ingresos'),
         headers: headers,
@@ -221,9 +142,31 @@ class UsuarioService {
       if (response.statusCode == 200 || response.statusCode == 201) {
         return json.decode(response.body);
       } else if (response.statusCode == 401) {
-        throw Exception('No autorizado. Inicia sesión nuevamente.');
+        throw Exception('Sesión expirada. Por favor inicia sesión nuevamente.');
       } else {
         throw Exception('Error al agregar ingreso');
+      }
+    } catch (e) {
+      throw Exception('Error: ${e.toString()}');
+    }
+  }
+
+  // Actualizar ingreso
+  Future<Map<String, dynamic>> actualizarIngreso(int ingresoId, Map<String, dynamic> ingreso) async {
+    try {
+      final headers = await _authHeaders;
+      final response = await http.put(
+        Uri.parse('$baseUrl/ingresos/$ingresoId'),
+        headers: headers,
+        body: json.encode(ingreso),
+      ).timeout(const Duration(seconds: 10));
+
+      if (response.statusCode == 200) {
+        return json.decode(response.body);
+      } else if (response.statusCode == 401) {
+        throw Exception('Sesión expirada. Por favor inicia sesión nuevamente.');
+      } else {
+        throw Exception('Error al actualizar ingreso');
       }
     } catch (e) {
       throw Exception('Error: ${e.toString()}');
@@ -233,7 +176,7 @@ class UsuarioService {
   // Agregar gasto
   Future<Map<String, dynamic>> agregarGasto(int usuarioId, Map<String, dynamic> gasto) async {
     try {
-      final headers = await _getAuthHeaders();
+      final headers = await _authHeaders;
       final response = await http.post(
         Uri.parse('$baseUrl/usuarios/$usuarioId/gastos'),
         headers: headers,
@@ -243,9 +186,31 @@ class UsuarioService {
       if (response.statusCode == 200 || response.statusCode == 201) {
         return json.decode(response.body);
       } else if (response.statusCode == 401) {
-        throw Exception('No autorizado. Inicia sesión nuevamente.');
+        throw Exception('Sesión expirada. Por favor inicia sesión nuevamente.');
       } else {
         throw Exception('Error al agregar gasto');
+      }
+    } catch (e) {
+      throw Exception('Error: ${e.toString()}');
+    }
+  }
+
+  // Actualizar gasto
+  Future<Map<String, dynamic>> actualizarGasto(int gastoId, Map<String, dynamic> gasto) async {
+    try {
+      final headers = await _authHeaders;
+      final response = await http.put(
+        Uri.parse('$baseUrl/gastos/$gastoId'),
+        headers: headers,
+        body: json.encode(gasto),
+      ).timeout(const Duration(seconds: 10));
+
+      if (response.statusCode == 200) {
+        return json.decode(response.body);
+      } else if (response.statusCode == 401) {
+        throw Exception('Sesión expirada. Por favor inicia sesión nuevamente.');
+      } else {
+        throw Exception('Error al actualizar gasto');
       }
     } catch (e) {
       throw Exception('Error: ${e.toString()}');
@@ -255,14 +220,14 @@ class UsuarioService {
   // Eliminar ingreso
   Future<void> eliminarIngreso(int ingresoId) async {
     try {
-      final headers = await _getAuthHeaders();
+      final headers = await _authHeaders;
       final response = await http.delete(
         Uri.parse('$baseUrl/ingresos/$ingresoId'),
         headers: headers,
       ).timeout(const Duration(seconds: 10));
 
       if (response.statusCode == 401) {
-        throw Exception('No autorizado. Inicia sesión nuevamente.');
+        throw Exception('Sesión expirada. Por favor inicia sesión nuevamente.');
       } else if (response.statusCode != 200 && response.statusCode != 204) {
         throw Exception('Error al eliminar ingreso');
       }
@@ -274,14 +239,14 @@ class UsuarioService {
   // Eliminar gasto
   Future<void> eliminarGasto(int gastoId) async {
     try {
-      final headers = await _getAuthHeaders();
+      final headers = await _authHeaders;
       final response = await http.delete(
         Uri.parse('$baseUrl/gastos/$gastoId'),
         headers: headers,
       ).timeout(const Duration(seconds: 10));
 
       if (response.statusCode == 401) {
-        throw Exception('No autorizado. Inicia sesión nuevamente.');
+        throw Exception('Sesión expirada. Por favor inicia sesión nuevamente.');
       } else if (response.statusCode != 200 && response.statusCode != 204) {
         throw Exception('Error al eliminar gasto');
       }
@@ -293,7 +258,7 @@ class UsuarioService {
   // Obtener resumen financiero actualizado del usuario
   Future<Map<String, dynamic>> obtenerBalance(int usuarioId) async {
     try {
-      final headers = await _getAuthHeaders();
+      final headers = await _authHeaders;
       final response = await http.get(
         Uri.parse('$baseUrl/usuarios/$usuarioId/resumen-financiero'),
         headers: headers,
@@ -302,7 +267,7 @@ class UsuarioService {
       if (response.statusCode == 200) {
         return json.decode(response.body);
       } else if (response.statusCode == 401) {
-        throw Exception('No autorizado. Inicia sesión nuevamente.');
+        throw Exception('Sesión expirada. Por favor inicia sesión nuevamente.');
       } else {
         throw Exception('Error al obtener resumen financiero');
       }

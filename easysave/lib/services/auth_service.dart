@@ -1,35 +1,28 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import '../models/usuario.dart';
 import '../config/app_config.dart';
 
-/// Servicio de autenticación JWT para consumir el backend de Spring Boot
 class AuthService {
-  static const String authUrl = '${AppConfig.baseUrl}/auth';
-  
+  static const String baseUrl = AppConfig.authBaseUrl;
   final storage = const FlutterSecureStorage();
 
-  // Headers comunes para las peticiones
-  Map<String, String> get _headers => {
-        'Content-Type': 'application/json',
-      };
-
-  /// Registra un nuevo usuario y retorna un token JWT
-  /// 
-  /// Retorna un Map con:
-  /// - 'success': true si el registro fue exitoso, false en caso contrario
-  /// - 'data': información del usuario y token (si success es true)
-  /// - 'message': mensaje de error (si success es false)
-  Future<Map<String, dynamic>> register({
+  // ============================================
+  // REGISTRO DE USUARIO
+  // ============================================
+  Future<Usuario> register({
     required String username,
     required String correo,
     required String password,
     String rol = 'USER',
   }) async {
     try {
+      print('[AUTH] Intentando registrar usuario: $username');
+      
       final response = await http.post(
-        Uri.parse('$authUrl/register'),
-        headers: _headers,
+        Uri.parse('$baseUrl/register'),
+        headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
           'username': username,
           'correo': correo,
@@ -38,130 +31,160 @@ class AuthService {
         }),
       );
 
-      if (response.statusCode == 201 || response.statusCode == 200) {
+      print('[AUTH] Status Code: ${response.statusCode}');
+
+      if (response.statusCode == 201) {
         final data = jsonDecode(response.body);
+        
+        // Guardar token
         await saveToken(data['token']);
-        await saveUserData(data);
-        return {'success': true, 'data': data};
+        await saveUserId(data['id']);
+        
+        // Crear usuario desde la respuesta
+        final usuario = Usuario(
+          id: data['id'],
+          username: data['username'],
+          correo: data['correo'],
+          rol: data['rol'] ?? 'USER',
+          password: '',
+        );
+        
+        print('[AUTH] Registro exitoso: ${usuario.username}');
+        return usuario;
       } else {
         final error = jsonDecode(response.body);
-        return {
-          'success': false, 
-          'message': error['message'] ?? 'Error en el registro'
-        };
+        throw Exception(error['message'] ?? 'Error en el registro');
       }
     } catch (e) {
-      return {
-        'success': false, 
-        'message': 'Error de conexión: ${e.toString()}'
-      };
+      print('[AUTH] Error en registro: $e');
+      rethrow;
     }
   }
 
-  /// Autentica un usuario existente y retorna un token JWT
-  /// 
-  /// Retorna un Map con:
-  /// - 'success': true si el login fue exitoso, false en caso contrario
-  /// - 'data': información del usuario y token (si success es true)
-  /// - 'message': mensaje de error (si success es false)
-  Future<Map<String, dynamic>> login({
+  // ============================================
+  // LOGIN DE USUARIO
+  // ============================================
+  Future<Usuario> login({
     required String username,
     required String password,
   }) async {
     try {
+      print('[AUTH] Intentando login: $username');
+      
       final response = await http.post(
-        Uri.parse('$authUrl/login'),
-        headers: _headers,
+        Uri.parse('$baseUrl/login'),
+        headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
           'username': username,
           'password': password,
         }),
       );
 
+      print('[AUTH] Status Code: ${response.statusCode}');
+
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
+        
+        // Guardar token
         await saveToken(data['token']);
-        await saveUserData(data);
-        return {'success': true, 'data': data};
+        await saveUserId(data['id']);
+        
+        // Crear usuario desde la respuesta
+        final usuario = Usuario(
+          id: data['id'],
+          username: data['username'],
+          correo: data['correo'],
+          rol: data['rol'] ?? 'USER',
+          password: '',
+        );
+        
+        print('[AUTH] Login exitoso: ${usuario.username}');
+        return usuario;
       } else {
         final error = jsonDecode(response.body);
-        return {
-          'success': false, 
-          'message': error['message'] ?? 'Credenciales inválidas'
-        };
+        throw Exception(error['message'] ?? 'Credenciales inválidas');
       }
     } catch (e) {
-      return {
-        'success': false, 
-        'message': 'Error de conexión: ${e.toString()}'
-      };
+      print('[AUTH] Error en login: $e');
+      rethrow;
     }
   }
 
-  /// Guarda el token JWT en el almacenamiento seguro
+  // ============================================
+  // TEST DE AUTENTICACIÓN
+  // ============================================
+  Future<bool> testAuth() async {
+    try {
+      String? token = await getToken();
+      if (token == null) return false;
+
+      final response = await http.get(
+        Uri.parse('$baseUrl/test'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+      ).timeout(const Duration(seconds: 5));
+
+      return response.statusCode == 200;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  // ============================================
+  // MANEJO DE TOKENS
+  // ============================================
+  
+  /// Guardar el token JWT
   Future<void> saveToken(String token) async {
     await storage.write(key: 'jwt_token', value: token);
   }
 
-  /// Guarda los datos del usuario en el almacenamiento seguro
-  Future<void> saveUserData(Map<String, dynamic> userData) async {
-    await storage.write(key: 'user_id', value: userData['id'].toString());
-    await storage.write(key: 'username', value: userData['username']);
-    await storage.write(key: 'correo', value: userData['correo']);
-    await storage.write(key: 'rol', value: userData['rol']);
-  }
-
-  /// Obtiene el token JWT del almacenamiento seguro
+  /// Obtener el token JWT
   Future<String?> getToken() async {
     return await storage.read(key: 'jwt_token');
   }
 
-  /// Obtiene los datos del usuario guardados
-  Future<Map<String, String?>> getUserData() async {
-    final id = await storage.read(key: 'user_id');
-    final username = await storage.read(key: 'username');
-    final correo = await storage.read(key: 'correo');
-    final rol = await storage.read(key: 'rol');
-    
-    return {
-      'id': id,
-      'username': username,
-      'correo': correo,
-      'rol': rol,
-    };
+  /// Guardar el ID del usuario
+  Future<void> saveUserId(int userId) async {
+    await storage.write(key: 'user_id', value: userId.toString());
   }
 
-  /// Elimina el token y datos del usuario (logout)
+  /// Obtener el ID del usuario
+  Future<int?> getUserId() async {
+    final userIdStr = await storage.read(key: 'user_id');
+    return userIdStr != null ? int.tryParse(userIdStr) : null;
+  }
+
+  /// Eliminar token (logout)
   Future<void> logout() async {
     await storage.delete(key: 'jwt_token');
     await storage.delete(key: 'user_id');
-    await storage.delete(key: 'username');
-    await storage.delete(key: 'correo');
-    await storage.delete(key: 'rol');
   }
 
-  /// Verifica si el usuario está autenticado (tiene un token válido)
+  /// Verificar si está autenticado
   Future<bool> isAuthenticated() async {
     String? token = await getToken();
-    return token != null && token.isNotEmpty;
+    return token != null;
   }
 
-  /// Hace una petición HTTP autenticada con el token JWT
-  /// 
-  /// [url] URL completa del endpoint
-  /// [method] Método HTTP (GET, POST, PUT, DELETE)
-  /// [body] Cuerpo de la petición (para POST y PUT)
+  // ============================================
+  // PETICIONES AUTENTICADAS
+  // ============================================
+  
+  /// Realizar una petición HTTP autenticada
   Future<http.Response> authenticatedRequest({
     required String url,
     String method = 'GET',
     Map<String, dynamic>? body,
   }) async {
     String? token = await getToken();
-    
+
     if (token == null) {
-      throw Exception('No hay token de autenticación. Inicia sesión primero.');
+      throw Exception('No hay sesión activa. Por favor inicia sesión.');
     }
-    
+
     Map<String, String> headers = {
       'Content-Type': 'application/json',
       'Authorization': 'Bearer $token',
@@ -173,31 +196,40 @@ class AuthService {
           Uri.parse(url),
           headers: headers,
           body: body != null ? jsonEncode(body) : null,
-        );
+        ).timeout(const Duration(seconds: 10));
+
       case 'PUT':
         return await http.put(
           Uri.parse(url),
           headers: headers,
           body: body != null ? jsonEncode(body) : null,
-        );
+        ).timeout(const Duration(seconds: 10));
+
       case 'DELETE':
-        return await http.delete(Uri.parse(url), headers: headers);
-      default:
-        return await http.get(Uri.parse(url), headers: headers);
+        return await http.delete(
+          Uri.parse(url),
+          headers: headers,
+        ).timeout(const Duration(seconds: 10));
+
+      default: // GET
+        return await http.get(
+          Uri.parse(url),
+          headers: headers,
+        ).timeout(const Duration(seconds: 10));
     }
   }
 
-  /// Verifica que el token JWT sea válido haciendo una petición de test
-  Future<bool> testAuthentication() async {
-    try {
-      final response = await authenticatedRequest(
-        url: '$authUrl/test',
-        method: 'GET',
-      );
-      
-      return response.statusCode == 200;
-    } catch (e) {
-      return false;
+  /// Obtener headers con autenticación
+  Future<Map<String, String>> getAuthHeaders() async {
+    String? token = await getToken();
+    
+    if (token == null) {
+      throw Exception('No hay sesión activa');
     }
+
+    return {
+      'Content-Type': 'application/json',
+      'Authorization': 'Bearer $token',
+    };
   }
 }

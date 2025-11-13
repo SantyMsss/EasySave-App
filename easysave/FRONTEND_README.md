@@ -46,7 +46,7 @@ La aplicación consume los siguientes endpoints:
 
 ### Base URL
 ```
-http://localhost:8080/api/v1/usuario-service
+https://easysave-usuario-service-production.up.railway.app/api/v1/usuario-service
 ```
 
 ### Endpoints Utilizados
@@ -71,7 +71,7 @@ http://localhost:8080/api/v1/usuario-service
 
 - Flutter SDK (>=3.10.0)
 - Dart SDK
-- API Backend ejecutándose en `http://localhost:8080`
+- API Backend ejecutándose en `https://easysave-usuario-service-production.up.railway.app`
 - Android Studio / VS Code con extensiones de Flutter
 - Emulador Android/iOS o navegador web
 
@@ -98,7 +98,7 @@ http://localhost:8080/api/v1/usuario-service
 ### Backend API
 Asegúrate de que tu API backend esté ejecutándose en:
 ```
-http://localhost:8080/api/v1/usuario-service
+https://easysave-usuario-service-production.up.railway.app/api/v1/usuario-service
 ```
 
 Si necesitas cambiar la URL base, edita el archivo:

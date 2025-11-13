@@ -1,5 +1,6 @@
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../models/usuario.dart';
+import 'auth_service.dart';
 import 'dart:convert';
 
 /// Administrador de sesión y autenticación del usuario
@@ -8,7 +9,8 @@ class AuthManager {
   static const String _keyUserId = 'user_id';
   static const String _keyUserData = 'user_data';
   static const String _keyIsLoggedIn = 'is_logged_in';
-  static const String _keyJwtToken = 'jwt_token';
+  
+  final AuthService _authService = AuthService();
 
   final storage = const FlutterSecureStorage();
 
@@ -33,24 +35,34 @@ class AuthManager {
     return null;
   }
 
-  /// Obtiene el token JWT de la sesión actual
-  Future<String?> obtenerToken() async {
-    return await storage.read(key: _keyJwtToken);
-  }
-
-  /// Verifica si hay una sesión activa
+  // Verificar si hay sesión activa (con validación de token JWT)
   Future<bool> tieneSesionActiva() async {
-    final isLoggedIn = await storage.read(key: _keyIsLoggedIn);
-    final token = await storage.read(key: _keyJwtToken);
-    return isLoggedIn == 'true' && token != null && token.isNotEmpty;
+    final prefs = await SharedPreferences.getInstance();
+    final isLoggedIn = prefs.getBool(_keyIsLoggedIn) ?? false;
+    
+    if (!isLoggedIn) return false;
+    
+    // Verificar si el token JWT es válido
+    final tokenValido = await _authService.isAuthenticated();
+    
+    if (!tokenValido) {
+      // Si el token no es válido, cerrar sesión
+      await cerrarSesion();
+      return false;
+    }
+    
+    return true;
   }
 
-  /// Cierra la sesión y elimina todos los datos almacenados
+  // Cerrar sesión (elimina datos locales y token JWT)
   Future<void> cerrarSesion() async {
-    await storage.delete(key: _keyUserId);
-    await storage.delete(key: _keyUserData);
-    await storage.delete(key: _keyIsLoggedIn);
-    await storage.delete(key: _keyJwtToken);
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_keyUserId);
+    await prefs.remove(_keyUserData);
+    await prefs.setBool(_keyIsLoggedIn, false);
+    
+    // Eliminar token JWT
+    await _authService.logout();
   }
 
   /// Actualiza los datos del usuario en la sesión (mantiene el token)

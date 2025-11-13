@@ -35,8 +35,8 @@ class _LoginScreenState extends State<LoginScreen> {
     setState(() => _isLoading = true);
 
     try {
-      // Intentar login con JWT
-      final result = await _authService.login(
+      // Login con JWT
+      final usuario = await _authService.login(
         username: _usernameController.text.trim(),
         password: _passwordController.text,
       );
@@ -80,7 +80,7 @@ class _LoginScreenState extends State<LoginScreen> {
         final errorMessage = e.toString().replaceAll('Exception: ', '');
         
         // Si es un error de conexión, mostrar diálogo con instrucciones
-        if (errorMessage.contains('conectar') || errorMessage.contains('conexión')) {
+        if (errorMessage.contains('conectar') || errorMessage.contains('ClientFailed') || errorMessage.contains('Connection')) {
           _showConnectionErrorDialog();
         } else {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -130,13 +130,13 @@ class _LoginScreenState extends State<LoginScreen> {
                 borderRadius: BorderRadius.circular(4),
               ),
               child: const SelectableText(
-                'http://localhost:8080',
+                'https://easysave-usuario-service-production.up.railway.app',
                 style: TextStyle(fontFamily: 'monospace'),
               ),
             ),
             const Text('2. ✓ CORS está configurado en el backend'),
             const SizedBox(height: 4),
-            const Text('3. ✓ El endpoint /api/v1/usuario-service/usuarios existe'),
+            const Text('3. ✓ El endpoint /api/v1/auth/login existe'),
           ],
         ),
         actions: [
