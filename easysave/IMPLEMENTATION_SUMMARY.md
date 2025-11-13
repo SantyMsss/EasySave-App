@@ -56,7 +56,7 @@ IMPLEMENTATION_SUMMARY.md  # Este archivo
 ## 🚀 Cómo Probar
 
 ### Prerequisitos
-1. **Backend corriendo** en `http://localhost:8080`
+1. **Backend corriendo** en `https://easysave-usuario-service-production.up.railway.app`
 2. **Base de datos** configurada y funcionando
 3. **Usuario registrado** en el sistema
 

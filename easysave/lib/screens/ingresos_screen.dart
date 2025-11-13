@@ -462,53 +462,87 @@ class _IngresosScreenState extends State<IngresosScreen> {
                             final ingreso = _ingresos[index];
                             return Card(
                               margin: const EdgeInsets.only(bottom: 12),
-                              child: ListTile(
-                                leading: CircleAvatar(
-                                  backgroundColor: Colors.green[100],
-                                  child: Icon(Icons.trending_up,
-                                      color: Colors.green[700]),
-                                ),
-                                title: Text(
-                                  ingreso.nombreIngreso,
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                                subtitle: Text(
-                                  ingreso.estadoIngreso.toUpperCase(),
-                                  style: TextStyle(
-                                    color: ingreso.estadoIngreso == 'fijo'
-                                        ? Colors.blue
-                                        : Colors.orange,
-                                    fontSize: 12,
-                                  ),
-                                ),
-                                trailing: Row(
-                                  mainAxisSize: MainAxisSize.min,
+                              child: Padding(
+                                padding: const EdgeInsets.all(12),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    Text(
-                                      CurrencyFormatter.format(
-                                          ingreso.valorIngreso),
-                                      style: TextStyle(
-                                        color: Colors.green[700],
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 16,
-                                      ),
+                                    Row(
+                                      children: [
+                                        CircleAvatar(
+                                          backgroundColor: Colors.green[100],
+                                          radius: 20,
+                                          child: Icon(
+                                            Icons.trending_up,
+                                            color: Colors.green[700],
+                                            size: 20,
+                                          ),
+                                        ),
+                                        const SizedBox(width: 12),
+                                        Expanded(
+                                          child: Column(
+                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                            children: [
+                                              Text(
+                                                ingreso.nombreIngreso,
+                                                style: const TextStyle(
+                                                  fontWeight: FontWeight.bold,
+                                                  fontSize: 15,
+                                                ),
+                                                overflow: TextOverflow.ellipsis,
+                                              ),
+                                              const SizedBox(height: 2),
+                                              Text(
+                                                ingreso.estadoIngreso.toUpperCase(),
+                                                style: TextStyle(
+                                                  color: ingreso.estadoIngreso == 'fijo'
+                                                      ? Colors.blue
+                                                      : Colors.orange,
+                                                  fontSize: 11,
+                                                  fontWeight: FontWeight.w600,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                        Text(
+                                          CurrencyFormatter.format(ingreso.valorIngreso),
+                                          style: TextStyle(
+                                            color: Colors.green[700],
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 16,
+                                          ),
+                                        ),
+                                      ],
                                     ),
-                                    const SizedBox(width: 4),
-                                    IconButton(
-                                      icon: const Icon(Icons.edit_outlined,
-                                          color: Colors.blue),
-                                      onPressed: () =>
-                                          _mostrarDialogoEditar(ingreso),
-                                      tooltip: 'Editar',
-                                    ),
-                                    IconButton(
-                                      icon: const Icon(Icons.delete_outline,
-                                          color: Colors.red),
-                                      onPressed: () =>
-                                          _confirmarEliminar(ingreso),
-                                      tooltip: 'Eliminar',
+                                    const Divider(height: 16),
+                                    Row(
+                                      mainAxisAlignment: MainAxisAlignment.end,
+                                      children: [
+                                        TextButton.icon(
+                                          onPressed: () => _mostrarDialogoEditar(ingreso),
+                                          icon: const Icon(
+                                            Icons.edit_outlined,
+                                            size: 18,
+                                          ),
+                                          label: const Text('Editar'),
+                                          style: TextButton.styleFrom(
+                                            foregroundColor: Colors.blue,
+                                          ),
+                                        ),
+                                        const SizedBox(width: 8),
+                                        TextButton.icon(
+                                          onPressed: () => _confirmarEliminar(ingreso),
+                                          icon: const Icon(
+                                            Icons.delete_outline,
+                                            size: 18,
+                                          ),
+                                          label: const Text('Eliminar'),
+                                          style: TextButton.styleFrom(
+                                            foregroundColor: Colors.red,
+                                          ),
+                                        ),
+                                      ],
                                     ),
                                   ],
                                 ),

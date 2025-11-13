@@ -24,6 +24,7 @@ class _RegistroScreenState extends State<RegistroScreen> {
   bool _isLoading = false;
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
+  bool _aceptaTerminos = false;
 
   @override
   void dispose() {
@@ -36,6 +37,18 @@ class _RegistroScreenState extends State<RegistroScreen> {
 
   Future<void> _handleRegistro() async {
     if (!_formKey.currentState!.validate()) return;
+
+    // Validar que se acepten los términos y condiciones
+    if (!_aceptaTerminos) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Debes aceptar los términos y condiciones para continuar'),
+          backgroundColor: Colors.orange,
+          duration: Duration(seconds: 3),
+        ),
+      );
+      return;
+    }
 
     setState(() => _isLoading = true);
 
@@ -122,7 +135,7 @@ class _RegistroScreenState extends State<RegistroScreen> {
                 borderRadius: BorderRadius.circular(4),
               ),
               child: const SelectableText(
-                'http://localhost:8080',
+                'https://easysave-usuario-service-production.up.railway.app',
                 style: TextStyle(fontFamily: 'monospace'),
               ),
             ),
@@ -293,6 +306,67 @@ class _RegistroScreenState extends State<RegistroScreen> {
                     return null;
                   },
                   enabled: !_isLoading,
+                ),
+                const SizedBox(height: 24),
+
+                // Checkbox de Términos y Condiciones
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.blue[50],
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: _aceptaTerminos ? Colors.blue : Colors.grey[300]!,
+                      width: 1.5,
+                    ),
+                  ),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Checkbox(
+                        value: _aceptaTerminos,
+                        onChanged: _isLoading
+                            ? null
+                            : (value) {
+                                setState(() => _aceptaTerminos = value ?? false);
+                              },
+                        activeColor: Colors.blue,
+                      ),
+                      Expanded(
+                        child: GestureDetector(
+                          onTap: _isLoading
+                              ? null
+                              : () {
+                                  setState(() => _aceptaTerminos = !_aceptaTerminos);
+                                },
+                          child: Padding(
+                            padding: const EdgeInsets.only(top: 12, left: 4),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text(
+                                  'Términos y Condiciones',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 14,
+                                  ),
+                                ),
+                                const SizedBox(height: 6),
+                                Text(
+                                  'Acepto el tratamiento de datos ingresados en EasySave para hacer cálculos estadísticos de ingresos, egresos, planes de ahorro y demás, para ofrecer servicios financieros como préstamos y demás productos que estará desarrollando la entidad.',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: Colors.grey[800],
+                                    height: 1.4,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
                 const SizedBox(height: 24),
 

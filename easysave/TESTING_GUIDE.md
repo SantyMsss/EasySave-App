@@ -5,7 +5,7 @@
 ### 1. Crear un usuario de prueba
 
 ```bash
-curl -X POST http://localhost:8080/api/v1/usuario-service/usuario \
+curl -X POST https://easysave-usuario-service-production.up.railway.app/api/v1/usuario-service/usuario \
   -H "Content-Type: application/json" \
   -d '{
     "username": "testuser",
@@ -20,19 +20,19 @@ curl -X POST http://localhost:8080/api/v1/usuario-service/usuario \
 ### 2. Listar todos los usuarios
 
 ```bash
-curl -X GET http://localhost:8080/api/v1/usuario-service/usuarios
+curl -X GET https://easysave-usuario-service-production.up.railway.app/api/v1/usuario-service/usuarios
 ```
 
 ### 3. Buscar usuario por ID
 
 ```bash
-curl -X GET http://localhost:8080/api/v1/usuario-service/usuarios/1
+curl -X GET https://easysave-usuario-service-production.up.railway.app/api/v1/usuario-service/usuarios/1
 ```
 
 ### 4. Actualizar usuario
 
 ```bash
-curl -X PUT http://localhost:8080/api/v1/usuario-service/usuario \
+curl -X PUT https://easysave-usuario-service-production.up.railway.app/api/v1/usuario-service/usuario \
   -H "Content-Type: application/json" \
   -d '{
     "id": 1,
@@ -108,7 +108,7 @@ Registra usuarios con diferentes valores de ingresos y gastos:
 
 ### Verificar que el backend está corriendo
 ```bash
-curl http://localhost:8080/api/v1/usuario-service/usuarios
+curl https://easysave-usuario-service-production.up.railway.app/api/v1/usuario-service/usuarios
 ```
 
 Si recibes una respuesta JSON, el backend está funcionando.

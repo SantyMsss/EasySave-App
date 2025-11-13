@@ -6,7 +6,7 @@ Si estás ejecutando la aplicación Flutter en un navegador web (Chrome, Firefox
 
 ## Problema
 
-Cuando intentas hacer peticiones desde `http://localhost:PORT` (Flutter web) a `http://localhost:8080` (API), el navegador bloquea las peticiones por política de seguridad CORS.
+Cuando intentas hacer peticiones desde `http://localhost:PORT` (Flutter web) a `https://easysave-usuario-service-production.up.railway.app` (API), el navegador bloquea las peticiones por política de seguridad CORS.
 
 ## Solución: Configurar CORS en Spring Boot
 
@@ -68,7 +68,7 @@ public class CorsConfig implements WebMvcConfigurer {
         registry.addMapping("/api/**")
                 .allowedOrigins(
                     "http://localhost:3000",      // Flutter web dev
-                    "http://localhost:8080",      // Backend
+                    "https://easysave-usuario-service-production.up.railway.app",      // Backend
                     "https://tu-dominio.com"      // Producción
                 )
                 .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")
@@ -113,7 +113,7 @@ curl -H "Origin: http://localhost:3000" \
      -H "Access-Control-Request-Headers: Content-Type" \
      -X OPTIONS \
      --verbose \
-     http://localhost:8080/api/v1/usuario-service/usuarios
+     https://easysave-usuario-service-production.up.railway.app/api/v1/usuario-service/usuarios
 ```
 
 Deberías ver headers como:
@@ -218,7 +218,7 @@ Si estás usando un emulador Android, necesitas cambiar `localhost` a `10.0.2.2`
 static const String baseUrl = 'http://10.0.2.2:8080/api/v1/usuario-service';
 
 // Para web o dispositivo físico
-static const String baseUrl = 'http://localhost:8080/api/v1/usuario-service';
+static const String baseUrl = 'https://easysave-usuario-service-production.up.railway.app/api/v1/usuario-service';
 ```
 
 O mejor aún, usa una variable de entorno:
@@ -231,7 +231,7 @@ class ApiConfig {
     if (isAndroidEmulator) {
       return 'http://10.0.2.2:8080/api/v1/usuario-service';
     }
-    return 'http://localhost:8080/api/v1/usuario-service';
+    return 'https://easysave-usuario-service-production.up.railway.app/api/v1/usuario-service';
   }
 }
 ```

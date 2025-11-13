@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<network-security-config>
+    <!-- Permitir todo el tráfico de red (HTTPS y HTTP) -->
+    <base-config cleartextTrafficPermitted="true">
+        <trust-anchors>
+            <!-- Confiar en certificados del sistema -->
+            <certificates src="system" />
+            <!-- Confiar en certificados de usuario -->
+            <certificates src="user" />
+        </trust-anchors>
+    </base-config>
+    
+    <!-- Configuración específica para dominios conocidos -->
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="true">railway.app</domain>
+        <domain includeSubdomains="true">up.railway.app</domain>
+        <domain includeSubdomains="true">easysave-usuario-service-production.up.railway.app</domain>
+        <domain includeSubdomains="true">ngrok-free.dev</domain>
+        <domain includeSubdomains="true">localhost</domain>
+        <domain includeSubdomains="true">10.0.2.2</domain>
+    </domain-config>
+</network-security-config>

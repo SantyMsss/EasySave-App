@@ -588,7 +588,7 @@ nombre_archivo.dart
 abstract class Env {
   static const String apiUrl = String.fromEnvironment(
     'API_URL',
-    defaultValue: 'http://localhost:8080',
+    defaultValue: 'https://easysave-usuario-service-production.up.railway.app',
   );
 }
 ```

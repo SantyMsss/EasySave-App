@@ -462,53 +462,87 @@ class _GastosScreenState extends State<GastosScreen> {
                             final gasto = _gastos[index];
                             return Card(
                               margin: const EdgeInsets.only(bottom: 12),
-                              child: ListTile(
-                                leading: CircleAvatar(
-                                  backgroundColor: Colors.red[100],
-                                  child: Icon(Icons.trending_down,
-                                      color: Colors.red[700]),
-                                ),
-                                title: Text(
-                                  gasto.nombreGasto,
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                                subtitle: Text(
-                                  gasto.estadoGasto.toUpperCase(),
-                                  style: TextStyle(
-                                    color: gasto.estadoGasto == 'fijo'
-                                        ? Colors.blue
-                                        : Colors.orange,
-                                    fontSize: 12,
-                                  ),
-                                ),
-                                trailing: Row(
-                                  mainAxisSize: MainAxisSize.min,
+                              child: Padding(
+                                padding: const EdgeInsets.all(12),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    Text(
-                                      CurrencyFormatter.format(
-                                          gasto.valorGasto),
-                                      style: TextStyle(
-                                        color: Colors.red[700],
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 16,
-                                      ),
+                                    Row(
+                                      children: [
+                                        CircleAvatar(
+                                          backgroundColor: Colors.red[100],
+                                          radius: 20,
+                                          child: Icon(
+                                            Icons.trending_down,
+                                            color: Colors.red[700],
+                                            size: 20,
+                                          ),
+                                        ),
+                                        const SizedBox(width: 12),
+                                        Expanded(
+                                          child: Column(
+                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                            children: [
+                                              Text(
+                                                gasto.nombreGasto,
+                                                style: const TextStyle(
+                                                  fontWeight: FontWeight.bold,
+                                                  fontSize: 15,
+                                                ),
+                                                overflow: TextOverflow.ellipsis,
+                                              ),
+                                              const SizedBox(height: 2),
+                                              Text(
+                                                gasto.estadoGasto.toUpperCase(),
+                                                style: TextStyle(
+                                                  color: gasto.estadoGasto == 'fijo'
+                                                      ? Colors.blue
+                                                      : Colors.orange,
+                                                  fontSize: 11,
+                                                  fontWeight: FontWeight.w600,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                        Text(
+                                          CurrencyFormatter.format(gasto.valorGasto),
+                                          style: TextStyle(
+                                            color: Colors.red[700],
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 16,
+                                          ),
+                                        ),
+                                      ],
                                     ),
-                                    const SizedBox(width: 4),
-                                    IconButton(
-                                      icon: const Icon(Icons.edit_outlined,
-                                          color: Colors.blue),
-                                      onPressed: () =>
-                                          _mostrarDialogoEditar(gasto),
-                                      tooltip: 'Editar',
-                                    ),
-                                    IconButton(
-                                      icon: const Icon(Icons.delete_outline,
-                                          color: Colors.red),
-                                      onPressed: () =>
-                                          _confirmarEliminar(gasto),
-                                      tooltip: 'Eliminar',
+                                    const Divider(height: 16),
+                                    Row(
+                                      mainAxisAlignment: MainAxisAlignment.end,
+                                      children: [
+                                        TextButton.icon(
+                                          onPressed: () => _mostrarDialogoEditar(gasto),
+                                          icon: const Icon(
+                                            Icons.edit_outlined,
+                                            size: 18,
+                                          ),
+                                          label: const Text('Editar'),
+                                          style: TextButton.styleFrom(
+                                            foregroundColor: Colors.blue,
+                                          ),
+                                        ),
+                                        const SizedBox(width: 8),
+                                        TextButton.icon(
+                                          onPressed: () => _confirmarEliminar(gasto),
+                                          icon: const Icon(
+                                            Icons.delete_outline,
+                                            size: 18,
+                                          ),
+                                          label: const Text('Eliminar'),
+                                          style: TextButton.styleFrom(
+                                            foregroundColor: Colors.red,
+                                          ),
+                                        ),
+                                      ],
                                     ),
                                   ],
                                 ),

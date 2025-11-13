@@ -225,7 +225,7 @@ Future<Map<String, dynamic>> actualizarGasto(int gastoId, Map<String, dynamic> g
 
 **Actualizar Ingreso:**
 ```http
-PUT http://localhost:8080/api/v1/usuario-service/ingresos/{id}
+PUT https://easysave-usuario-service-production.up.railway.app/api/v1/usuario-service/ingresos/{id}
 Authorization: Bearer {token}
 Content-Type: application/json
 
@@ -238,7 +238,7 @@ Content-Type: application/json
 
 **Actualizar Gasto:**
 ```http
-PUT http://localhost:8080/api/v1/usuario-service/gastos/{id}
+PUT https://easysave-usuario-service-production.up.railway.app/api/v1/usuario-service/gastos/{id}
 Authorization: Bearer {token}
 Content-Type: application/json
 

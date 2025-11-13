@@ -106,7 +106,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 borderRadius: BorderRadius.circular(4),
               ),
               child: const SelectableText(
-                'http://localhost:8080',
+                'https://easysave-usuario-service-production.up.railway.app',
                 style: TextStyle(fontFamily: 'monospace'),
               ),
             ),

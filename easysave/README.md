@@ -33,7 +33,7 @@ Una aplicación Flutter completa para la gestión de finanzas personales con fun
 - Flutter SDK (>=3.0.0)
 - Dart SDK
 - Android Studio / VS Code
-- Backend EasySave corriendo en `http://localhost:8080`
+- Backend EasySave corriendo en `https://easysave-usuario-service-production.up.railway.app`
 
 ### Instalación
 
@@ -111,7 +111,7 @@ dev_dependencies:
 
 La aplicación se conecta a un backend Spring Boot en:
 ```
-http://localhost:8080/api/v1/
+https://easysave-usuario-service-production.up.railway.app/api/v1/
 ```
 
 ### Endpoints Principales
