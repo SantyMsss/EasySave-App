@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
 import '../services/auth_manager.dart';
+import '../models/usuario.dart';
 import 'registro_screen.dart';
 import 'home_screen.dart';
 
@@ -40,16 +41,39 @@ class _LoginScreenState extends State<LoginScreen> {
         password: _passwordController.text,
       );
 
-      // Guardar sesión
-      await _authManager.guardarSesion(usuario);
-
-      if (mounted) {
-        // Navegar a la pantalla principal
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(
-            builder: (context) => HomeScreen(usuario: usuario),
-          ),
+      if (result['success']) {
+        final userData = result['data'];
+        
+        // Crear objeto Usuario con los datos recibidos
+        final usuario = Usuario(
+          id: userData['id'],
+          username: userData['username'],
+          correo: userData['correo'],
+          rol: userData['rol'],
         );
+
+        // Guardar sesión con el token
+        await _authManager.guardarSesion(usuario, userData['token']);
+
+        if (mounted) {
+          // Navegar a la pantalla principal
+          Navigator.of(context).pushReplacement(
+            MaterialPageRoute(
+              builder: (context) => HomeScreen(usuario: usuario),
+            ),
+          );
+        }
+      } else {
+        // Mostrar mensaje de error
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(result['message'] ?? 'Error al iniciar sesión'),
+              backgroundColor: Colors.red,
+              duration: const Duration(seconds: 4),
+            ),
+          );
+        }
       }
     } catch (e) {
       if (mounted) {

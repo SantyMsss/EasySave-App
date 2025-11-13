@@ -64,14 +64,14 @@ class _RegistroScreenState extends State<RegistroScreen> {
       // Guardar sesión
       await _authManager.guardarSesion(usuario);
 
-      if (mounted) {
-        // Mostrar mensaje de éxito
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('¡Registro exitoso! Bienvenido a EasySave'),
-            backgroundColor: Colors.green,
-          ),
-        );
+        if (mounted) {
+          // Mostrar mensaje de éxito
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('¡Registro exitoso! Bienvenido a EasySave'),
+              backgroundColor: Colors.green,
+            ),
+          );
 
         // Navegar a la pantalla principal
         Navigator.of(context).pushAndRemoveUntil(
